@@ -153,6 +153,11 @@ void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_No
 	for (auto i = 0; i < opn; i++)
 	{
 		G_Node curr;
+
+		// IMPLEMENTED BY SILVIA
+		curr.criticalSuccessorId = -1; // Initialize criticalSuccessorId
+		// END IMPLEMENTED BY SILVIA
+		
 		ops[i] = curr;
 	}
 

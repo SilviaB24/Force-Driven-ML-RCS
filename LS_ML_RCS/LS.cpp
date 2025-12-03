@@ -81,9 +81,10 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay)
 {
 
+	int starting_high_latency = 100000;
 	// Get latency constraint upper bound
 	LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, latencyConstraint, latencyParameter, delay, false);
+			ops, starting_high_latency, latencyParameter, delay, false);
 	
 	int target_latency = actualLatency;
 	int iteration_count = 0;
@@ -507,11 +508,35 @@ void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, st
 // SILVIA'S NEW IMPROVEMENT IDEA
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay)
 {
+	for (auto& [id, node] : available_ops) {
+
+		// Priority 2: 
+		float sum = 0.0f;
+
+		// sum on the critical path successors
+		int current_id = id;
+		while (ops[current_id].criticalSuccessorId != -1) {
+			int succ_id = ops[current_id].criticalSuccessorId;
+
+			// Add square of latency to sum
+			sum += pow(delay[ops[succ_id].type],2);
+			current_id = succ_id;
+		}
+
+		// Store negative sum to have higher priority for higher sum values
+		ops[id].priority2 = -sum;
+	}
 
 }
 
 void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay)
 {
+	for (auto& [id, node] : available_ops) {
+
+		// Priority 3: Number of immediate children (more children -> higher priority)
+		// Store negative number to have higher priority for more children
+		ops[id].priority3 = - ops[id].child.size();
+	}
 
 }
 // END OF SILVIA'S NEW IMPROVEMENT IDEA

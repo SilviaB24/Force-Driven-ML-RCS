@@ -34,7 +34,7 @@ struct G_Node    //save the info for operation node
 	int criticalSuccessorId; // ID of the critical successor node
 	float priority1; // priority value for FDS-based scheduling
 	float priority2; // second priority value for FDS-based scheduling
-	float priority3; // third priority value for FDS-based scheduling
+	int priority3; // third priority value for FDS-based scheduling
 	// END IMPLEMENTED BY SILVIA
 };
 
