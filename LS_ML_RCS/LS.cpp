@@ -553,10 +553,128 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 // IMPLEMENTED BY PLEASE
 
 // ORIGINAL PRIORITY CALCULATION FUNCTION FROM THE MIDTERM
-void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay)
-{
+// please's idea Probabilistic Priority Weight
 
+void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops,
+                              std::map<int, G_Node>& ops,
+                              std::vector<int>& delay)
+{
+    if (available_ops.empty()) return;
+
+    // Derive a target latency horizon from ALAP values:
+    //    L_target = max_u (ALAP(u) + latency(u) - 1)
+    int target_latency = 0;
+    for (const auto &kv : ops) {
+        const G_Node &node = kv.second;
+        int func_type = node.type;
+        if (func_type < 0 || func_type >= numberOfFunctionType) continue;
+
+        int finish_latest = node.alap + delay[func_type] - 1;
+        if (finish_latest > target_latency) {
+            target_latency = finish_latest;
+        }
+    }
+    if (target_latency <= 0) target_latency = 1;
+
+    // Build FDS graphs q_k(m) using Silvia's function.
+    //    fds_graphs[func_type][cycle] = expected usage of that resource in that cycle.
+    std::vector<std::vector<float>> fds_graphs(
+        numberOfFunctionType,
+        std::vector<float>(target_latency + 2, 0.0f)
+    );
+
+    calculate_fds_graphs(ops, fds_graphs, target_latency, delay);
+
+    // Helper: compute local congestion C_local(u) from FDS
+    auto compute_C_local = [&](int opId) -> float {
+        const G_Node &node = ops.at(opId);
+        int func_type = node.type;
+
+        // Ignore SOURCE/SINK or invalid types
+        if (func_type < 0 || func_type >= numberOfFunctionType) return 0.0f;
+
+        int asap = node.asap;
+        int alap = std::max(node.asap, node.alap);
+        int latency = delay[func_type];
+
+        float q_max = 0.0f;
+
+        // We consider all possible (start, active) cycles in the mobility window
+        for (int s = asap; s <= alap; ++s) {
+            for (int t = s; t < s + latency; ++t) {
+                if (t <= 0 || t > target_latency) continue;
+                q_max = std::max(q_max, fds_graphs[func_type][t]);
+            }
+        }
+        return q_max; // not divided by resources; normalization happens later
+    };
+
+    // Compute raw S(u) and C(u) for all available operations
+    std::map<int, double> rawS;
+    std::map<int, double> rawC;
+
+    double s_max = 1e-6;
+    double c_max = 1e-6;
+
+    for (auto &entry : available_ops) {
+        int id = entry.first;
+        const G_Node &node = ops.at(id);
+
+        // Slack term S(u) = (mobility + 1)
+        int mobility = node.alap - node.asap; // >= 0 ideally
+        if (mobility < 0) mobility = 0;
+        double S = static_cast<double>(mobility + 1);
+        rawS[id] = S;
+        if (S > s_max) s_max = S;
+
+        // Congestion term C(u): average along critical successor chain 
+        double sumC = 0.0;
+        int len = 0;
+
+        int current = id;
+        std::set<int> visited; // avoid accidental loops
+
+        while (current != -1 && !visited.count(current)) {
+            visited.insert(current);
+
+            float C_local = compute_C_local(current);
+            sumC += static_cast<double>(C_local);
+            ++len;
+
+            int next = ops.at(current).criticalSuccessorId;
+            if (next == current) break; // safety
+            current = next;
+        }
+
+        double C = (len > 0) ? (sumC / static_cast<double>(len)) : 0.0;
+        rawC[id] = C;
+        if (C > c_max) c_max = C;
+    }
+
+    // Normalize and compute final priority F(u)
+    const double EPS = 1e-4;
+    const double ALPHA = 1.0; // exponent for S_norm
+    const double BETA  = 1.0; // exponent for C_norm
+
+    for (auto &entry : available_ops) {
+        int id = entry.first;
+
+        double s_norm = rawS[id] / s_max;
+        double c_norm = (c_max > 0.0) ? (rawC[id] / c_max) : 0.0;
+
+        // Probabilistic weighting:
+        // F(u) = S_norm^ALPHA * (C_norm + EPS)^BETA
+        double F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+
+        // Write into the global ops map 
+        ops[id].priority1 = F;
+
+        // also update the local copy stored in available_ops
+        // so that PrioritySorting, which compares pair.second, sees it.
+        entry.second.priority1 = F;
+    }
 }
+
 
 
 // END IMPLEMENTED BY PLEASE
