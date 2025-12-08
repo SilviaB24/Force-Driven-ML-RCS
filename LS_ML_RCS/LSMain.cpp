@@ -128,7 +128,7 @@ int main(int argc, char** argv)
 			output_sb_result << res_type[i] << " " << delay[i] << endl;
 
 		// LINE 5: DFG Name
-		output_sb_result << "DFG name: " << dfg_name << endl;
+		output_sb_result << "DFG name: " << DFGname << endl;
 
 		// LINE 6: latency obtained
 		output_sb_result << "Actual Latency " << actualLatency << endl;
