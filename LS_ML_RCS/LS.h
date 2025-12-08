@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <queue>
 #include <sstream>
+#include <set>
 
 #define MAX_ITERATIONS 100
 
@@ -41,7 +42,10 @@ struct G_Node    //save the info for operation node
 void READ_LIB(const string& file_name,
 	vector<int>& delay,
 	vector<int>& lp,
-	vector<int>& dp);
+	vector<int>& dp,
+	vector<string>& res_type,
+	vector<int>& res_constr
+);
 
 
 void Read_DFG(int& DFG, string& filename, string& dfg_name); //Read-DFG filename

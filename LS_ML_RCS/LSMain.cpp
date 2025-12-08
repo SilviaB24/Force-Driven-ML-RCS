@@ -10,7 +10,7 @@ int edge_num = 0;
 //G_Node* ops; //operations list
 
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay);
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr);
 
 ofstream output_sb_result;
 
@@ -20,9 +20,23 @@ int main(int argc, char** argv)
 	//read "lib"
 	//get delay structure: only ADD/MUL are needed. you can change delay of ADD/MUL (# of cc's) in "lib.txt" file.
 	string filename = "lib.txt";
+
 	std::vector<int> delay, lp, dp;
 
-	READ_LIB(filename, delay, lp, dp);
+	// IMPLEMENTED BY SILVIA
+	std::vector<int> res_constr;
+	std::vector<string> res_type;
+
+	READ_LIB(filename, delay, lp, dp, res_type, res_constr);
+
+	// END IMPLEMENTED BY SILVIA
+
+
+
+	// print LIB info for debugging
+	for (size_t i = 0; i < delay.size(); i++) {
+		std::cout << "Function type: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << "\n";
+	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
 	for (DFG = 1; DFG <= 1; DFG++) {
@@ -60,8 +74,13 @@ int main(int argc, char** argv)
 		int actualLatency = 0;
 		int latencyConstraint = 0;
 
+
+		// CHANGED BY SILVIA
+
 		LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, latencyConstraint, latencyParameter, delay);
+			ops, latencyConstraint, latencyParameter, delay, res_constr);
+
+		// END CHANGED BY SILVIA
 
 		int total_FUs = 0;
 
@@ -97,10 +116,32 @@ int main(int argc, char** argv)
 
 		output_sb_result.open(output_sb_res, ios::out);
 
-		output_sb_result << "LC " << latencyConstraint << endl;
-		for (auto i = 0; i < opn; i++) 
+
+		// IMPLEMENTED BY SILVIA
+
+		for (auto i = 0; i < delay.size(); i++)
+			// LINES 1, 2: function type, resource constraint
+			output_sb_result << res_type[i] << " " << res_constr[i] << endl;
+
+		for (auto i = 0; i < delay.size(); i++)
+			// LINES 3, 4: function type, delay
+			output_sb_result << res_type[i] << " " << delay[i] << endl;
+
+		// LINE 5: DFG Name
+		output_sb_result << "DFG name: " << dfg_name << endl;
+
+		// LINE 6: latency obtained
+		output_sb_result << "Actual Latency " << actualLatency << endl;
+
+		// LINE 7 -> END: detailed scheduling & binding result
+		// Format: " <oper-ID> <schl-time>  <FU-binding ID>
+		for (auto i = 0; i < opn; i++)
 			output_sb_result << i << " " << schlResult[i] << " " << opBindingResult[i] << endl;
-		
+
+
+		// END IMPLEMENTED BY SILVIA
+
+
 		output_sb_result.close();
 
 		//end of output-file function part.

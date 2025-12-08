@@ -24,10 +24,13 @@ inline bool isCommentLine(const string& line) {
 //lp
 //dp
 
+
 void READ_LIB(const string& file_name,
 	vector<int>& delay,
 	vector<int>& lp,
-	vector<int>& dp)
+	vector<int>& dp,
+	vector<string>& res_type,
+	vector<int>& res_constr)
 {
 	ifstream fin(file_name);
 	if (!fin.is_open()) {
@@ -44,10 +47,13 @@ void READ_LIB(const string& file_name,
 			continue;
 
 		string type;
-		int d, leakage, dynamic_p;
+		int count, d, leakage, dynamic_p;
 
 		stringstream ss(line);
-		ss >> type >> d >> leakage >> dynamic_p;
+
+		// CHANGED BY SILVIA
+		ss >> type >> count >> d >> leakage >> dynamic_p;
+		// END CHANGED BY SILVIA
 
 		if (ss.fail()) {
 			cerr << "Warning: malformed line ignored: " << line << endl;
@@ -56,6 +62,13 @@ void READ_LIB(const string& file_name,
 		delay.push_back(d);
 		lp.push_back(leakage);
 		dp.push_back(dynamic_p);
+
+		// IMPLEMENTED BY SILVIA
+
+		res_type.push_back(type);
+		res_constr.push_back(count);
+
+		// END IMPLEMENTED BY SILVIA
 	}
 
 	fin.close();

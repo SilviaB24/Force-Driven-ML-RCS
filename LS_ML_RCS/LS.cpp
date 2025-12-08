@@ -68,7 +68,7 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
 // IMPLEMENTED BY SILVIA
 void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, bool improvedSolution);
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution);
 void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
@@ -78,13 +78,13 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
 // IMPLEMENTED BY SILVIA
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay)
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr)
 {
 
 	int starting_high_latency = 100000;
 	// Get latency constraint upper bound
 	LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, starting_high_latency, latencyParameter, delay, false);
+			ops, starting_high_latency, latencyParameter, delay, res_constr, false);
 	
 	int target_latency = actualLatency;
 	int iteration_count = 0;
@@ -93,12 +93,12 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 		iteration_count++;
 
-		cout << "Iteration: " << iteration_count << ". Target latency: " << latencyConstraint << endl;
+		cout << "Iteration: " << iteration_count << ". Target latency: " << target_latency << endl;
 
 		// calculate priorities
 
 		LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, target_latency, latencyParameter, delay, true);
+			ops, target_latency, latencyParameter, delay, res_constr, true);
 
 		target_latency = actualLatency - 1;
 
@@ -115,7 +115,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 
 void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, bool improvedSolution)
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution)
 {
 	ASAP(ops, delay);
 	getLC(latencyConstraint, latencyParameter, ops, delay);
@@ -138,10 +138,26 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 		//a new Function type needs to be considered in the allocation structure
 		if (pt == Allocation.end())
 		{
+
+
 			preAllocation instance;
-			instance.FunctionType = ops[anOperation].type;
-			instance.preNum = instance.postNum = 1;
-			Allocation.push_back(instance);
+            instance.FunctionType = ops[anOperation].type;
+            
+            // IMPLEMENTED BY SILVIA
+            
+			// If the function type index exceeds the size of res_constr vector set preNum and postNum to 1
+            if (instance.FunctionType < res_constr.size()) {
+                instance.preNum = res_constr[instance.FunctionType];
+                instance.postNum = res_constr[instance.FunctionType];
+            } else {
+                
+                instance.preNum = 1; 
+                instance.postNum = 1;
+            }
+            // END IMPLEMENTED BY SILVIA
+
+            Allocation.push_back(instance);
+
 		}
 	}
 
@@ -259,18 +275,6 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 		currentClockCycle++;	//move to the next cc
 	}//end list scheduling
 
-	//update allocation if any FU is not used in the LS iteration
-	for (auto pt = Allocation.begin(); pt != Allocation.end(); pt++)
-		for (int i = 0; i < sclbld.bld[pt->FunctionType].size(); i++)
-			if (sclbld.bld[pt->FunctionType][i].size() == 0)
-			{
-				sclbld.bld[pt->FunctionType].pop_back();
-				sclbld.res[pt->FunctionType]--;
-				time[pt->FunctionType].pop_back();
-				pt->postNum--;
-				pt->preNum--;
-				i--;
-			}
 
 	//get achieved latency of the LS iteration
 	sclbld.achievedLatency = 0;
