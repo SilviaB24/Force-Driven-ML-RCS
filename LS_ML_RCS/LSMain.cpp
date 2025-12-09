@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 			for (auto fu = 0; fu < numOfFUs; fu++) 
 				for (auto op = bindingResult[type][fu].begin(); op != bindingResult[type][fu].end(); op++) 
 					opBindingResult[*op] = fu + curr_idx;
-			curr_idx = numOfFUs;
+			curr_idx += numOfFUs;
 		}
 
 		std::cout << "For the curren DFG " << DFG << ", the actual Latency is " << actualLatency << " (latency constraint is " << latencyConstraint << ")," << " # of total FUs used = " << totalFUs << endl;

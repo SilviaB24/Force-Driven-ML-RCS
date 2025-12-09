@@ -32,6 +32,9 @@ struct SortSlack {
 
 
 // IMPLEMENTED BY SILVIA
+
+bool DEBUG = false;
+
 struct PrioritySorting {
 	bool operator()(const std::pair<int, G_Node>& a, const std::pair<int, G_Node>& b) {
 		
@@ -95,7 +98,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 		iteration_count++;
 
-		cout << "Iteration: " << iteration_count << ". Target latency: " << target_latency << endl;
+		//cout << "Iteration: " << iteration_count << ". Target latency: " << target_latency << endl;
 
 		// calculate priorities
 
@@ -105,7 +108,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 		target_latency = actualLatency - 1;
 
 		if(actualLatency >= latencyConstraint){
-			cout << "No better solution found. Exiting. " << endl;
+			//cout << "No better solution found. Exiting. " << endl;
 			return;
 		}
 	}
@@ -258,6 +261,24 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 				if (improvedSolution) {
 					
 					calculate_priorities(tempOpSet, ops, delay);
+
+					// Debug info
+
+					if (DEBUG) {
+						cout << "\n[DEBUG] Cycle " << currentClockCycle << " - Resource Type " << currentFunctionType << endl;
+						cout << "Candidates available: " << tempOpSet.size() << endl;
+						cout << "ID\tPrio1(F)\tPrio2(Succ)\tPrio3(Child)" << endl;
+
+						for (const auto& p : tempOpSet) {
+							// Access the node from the pair
+							const G_Node& n = p.second; 
+							cout << p.first << "\t" 
+								<< n.priority1 << "\t\t" 
+								<< n.priority2 << "\t\t" 
+								<< n.priority3 << endl;
+						}
+						cout << "----------------------------------------" << endl;
+					}
 
 					//sort operations in increasing Priority order
 					std::sort(tempOpSet.begin(), tempOpSet.end(), PrioritySorting());
@@ -461,8 +482,8 @@ void calculate_fds_graphs(std::map<int, G_Node> ops, std::vector<std::vector<flo
 	
 	// print the whole content of ops for debugging
 	for (const auto& [id, node] : ops) {
-		std::cout << "Node ID: " << id << ", Type: " << node.type
-			<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
+		//std::cout << "Node ID: " << id << ", Type: " << node.type
+		//	<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
 	}
 
 	
@@ -690,6 +711,37 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
         // so that PrioritySorting, which compares pair.second, sees it.
         entry.second.priority1 = F;
     }
+
+
+	if (DEBUG) {
+		cout << "\n[DEBUG PRIORITY 1 DETAILS]" << endl;
+		cout << "ID\tS_raw\tS_norm\tC_raw\tC_norm\tFinal_F" << endl;
+
+		for (auto &entry : available_ops) {
+			int id = entry.first;
+
+			double s_norm = rawS[id] / s_max;
+			double c_norm = (c_max > 0.0) ? (rawC[id] / c_max) : 0.0;
+
+			// Probabilistic weighting:
+			// F(u) = S_norm^ALPHA * (C_norm + EPS)^BETA
+			double F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+
+			// Write into the global ops map 
+			ops[id].priority1 = F;
+			entry.second.priority1 = F;
+
+			// --- DEBUG PRINT COMPONENTS ---
+			cout << id << "\t" 
+				<< rawS[id] << "\t" 
+				<< fixed << setprecision(2) << s_norm << "\t" 
+				<< rawC[id] << "\t" 
+				<< c_norm << "\t" 
+				<< F << endl;
+			// -----------------------------
+		}
+		cout << "--------------------------\n" << endl;
+	}
 }
 
 

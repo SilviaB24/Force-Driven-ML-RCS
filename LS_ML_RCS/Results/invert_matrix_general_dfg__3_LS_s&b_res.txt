@@ -6,7 +6,7 @@ mul 2
 div 3
 DFG name: invert_matrix_general_dfg__3
 Actual Latency 282
-0 1 1
+0 1 2
 1 1 1
 2 3 0
 3 4 0
