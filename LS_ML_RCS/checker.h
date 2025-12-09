@@ -79,4 +79,5 @@ void Read_DFG(int& DFG, string& filename, string& dfg_name); //Read-DFG filename
 void readGraphInfo(string& filename, int& edge_num, int& opn);
 
 //			New Change for ML-RCS: adding "int rc[2]"
-void get_S_structure(string& filename, S& s, int& LC, int rc[2]);
+int get_S_structure(string& filename, string& DFG_name, std::map<int, string>& FU_type, std::map<int, int>& FU_constraint, std::map<int, int>& reported_FUs, std::map<int, int>& FU_delay, std::map<string, int>& FU_type_name_to_id,
+	int& actual_latency_reported, S& s);

@@ -25,6 +25,164 @@ bool parse_filename_by_algo(const std::string& filename,
 	std::string& dfg_name,
 	std::string& algo_name);
 
+// ===================== Helper functions =====================
+std::string trim(const std::string& str);
+std::string to_lower(const std::string& str);
+
+std::string trim(const std::string& str) {
+	size_t start = str.find_first_not_of(" \t\r\n");
+	if (start == std::string::npos) {
+		return "";
+	}
+	size_t end = str.find_last_not_of(" \t\r\n");
+	return str.substr(start, end - start + 1);
+}
+
+std::string to_lower(const std::string& str) {
+	std::string res = str;
+	std::transform(res.begin(), res.end(), res.begin(),
+		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	return res;
+}
+
+// ===================== func1, func2, func3, func4 =====================
+// f1 for reading DFG name (line 0)
+// f2 for reading FU informations <type> <rc> <usage> <delay>
+// f3 for reading actual latency
+// f4 for reading detailed s or s&b solution.
+
+void func1(const std::string& line, string& DFG_name);
+void func2(const std::string& line, std::map<int, string>& FU_type, std::map<int, int>& FU_constraint, std::map<int, int>& reported_FUs, std::map<int, int>& FU_delay, std::map<string, int>& FU_type_name_to_id);
+void func3(const std::string& line, int& actual_latency_reported);
+void func4(const std::string& line, S& s);
+
+// func1: first non-comment, non-empty line: <DFG Name>
+void func1(const std::string& line, string& DFG_name) {
+	DFG_name = trim(line);
+	// You can also log if needed:
+	// std::cout << "DFG name = " << DFG_name << std::endl;
+}
+
+// func2: FU-type lines (between line 2 and the line before "latency")
+// Format: <fu-type-string> <FU resource constraint> <reported FU usage> <FU delay>
+// FU-type ID rule:
+//   - If fuName is in predefined_FU_type_id, use that fixed ID.
+//   - Otherwise, assign an ID starting from 8 in the order of appearance.
+
+void func2(const std::string& line, std::map<int, string>& FU_type, std::map<int, int>& FU_constraint, std::map<int, int>& reported_FUs, std::map<int, int>& FU_delay, std::map<string, int>& FU_type_name_to_id) {
+	std::stringstream ss(line);
+	std::string fuName;
+	int rc = 0;
+	int reported = 0;
+	int delay = 0;
+
+	std::map<std::string, int> predefined_FU_type_id = {
+	{"ADD",0},{"MUL",1},{"AND",2},{"ASR",3},
+	{"LSR",4},{"STR",5},{"SUB",6},{"DIV",7}
+	};
+
+	// Next dynamic FU-type ID for non-predefined types (starts from 8)
+	int next_dynamic_fu_type_id = 8;
+
+	if (!(ss >> fuName >> rc >> reported >> delay)) {
+		std::cerr << "Error: invalid FU-type line format: " << line << std::endl;
+		std::exit(1);
+	}
+
+
+	int fuTypeID = -1;
+
+	// First, check if this FU-type is in the predefined mapping
+	auto it_pre = predefined_FU_type_id.find(fuName);
+	if (it_pre != predefined_FU_type_id.end()) {
+		// Use predefined ID
+		fuTypeID = it_pre->second;
+	}
+	else {
+		// Not in predefined list: use dynamic ID starting from 8
+		auto it_dyn = FU_type_name_to_id.find(fuName);
+		if (it_dyn == FU_type_name_to_id.end()) {
+			// First time seeing this new FU-type -> assign a new ID
+			fuTypeID = next_dynamic_fu_type_id++;
+			FU_type_name_to_id[fuName] = fuTypeID;
+		}
+		else {
+			// Already assigned a dynamic ID before
+			fuTypeID = it_dyn->second;
+		}
+	}
+
+	// Store information in the global maps
+	FU_type[fuTypeID] = fuName;
+	FU_constraint[fuTypeID] = rc;
+	reported_FUs[fuTypeID] = reported;
+	FU_delay[fuTypeID] = delay;
+
+	// Also record the name-to-ID mapping for both predefined and dynamic types
+	FU_type_name_to_id[fuName] = fuTypeID;
+}
+
+// func3: "latency" keyword line
+// Format: "actual latency" <actual latency value>
+// Note: the keyword "latency" should be matched case-insensitively.
+void func3(const std::string& line, int& actual_latency_reported) {
+	std::string lower_line = to_lower(line);
+	if (lower_line.find("latency") == std::string::npos) {
+		std::cerr << "Error: func3 called on a line without keyword 'latency': " << line << std::endl;
+		std::exit(1);
+	}
+
+	// Extract the (last) integer value from the line as the actual latency
+	std::stringstream ss(line);
+	std::string token;
+	int lastInt = -1;
+	while (ss >> token) {
+		std::stringstream ts(token);
+		int val;
+		if (ts >> val) {
+			lastInt = val;
+		}
+	}
+
+	if (lastInt < 0) {
+		std::cerr << "Error: unable to parse actual latency value from line: " << line << std::endl;
+		std::exit(1);
+	}
+
+	actual_latency_reported = lastInt;
+	// std::cout << "Actual latency (reported) = " << actual_latency_reported << std::endl;
+}
+
+// func4: all lines after the "actual latency" line
+// Format:
+//   scheduling-only checker: <operation ID> <scheduling time>
+//   S&B checker:             <operation ID> <scheduling time> <FU-ID>
+void func4(const std::string& line, S& s) {
+	std::stringstream ss(line);
+	int op_id = 0;
+	int sched_cc = 0;
+	int fu_id = -1;
+
+	if (!(ss >> op_id >> sched_cc)) {
+		std::cerr << "Error: invalid operation line format (missing op_id or scheduling time): "
+			<< line << std::endl;
+		std::exit(1);
+	}
+
+	// Try to read FU-ID (for S&B checker)
+	if (ss >> fu_id) {
+		// S&B case: both schedule and bind
+		s.schedule[op_id] = sched_cc;
+		s.bind[op_id] = fu_id;
+	}
+	else {
+		// Scheduling-only case: no FU-ID present
+		s.schedule[op_id] = sched_cc;
+		// bind map remains untouched for this op_id
+	}
+}
+
+
 int main(int argc, char** argv)
 {
 	if (argc < 2) {
@@ -32,48 +190,55 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	int edge_num = 0;
+	int all_error = 0;
+	ops.clear();
+
 	std::string input_filename = argv[1];
 	//std::cout << "Input file: " << input_filename << endl;
 
 	std::string check_dfg_name, algo_name;
-
 	if (!parse_filename_by_algo(input_filename, check_dfg_name, algo_name)) {
 		std::cerr << "Invalid filename format: " << input_filename << std::endl;
 		return 1;
 	}
 
-	std::cout << "DFG name = " << check_dfg_name << "\n";
-	std::cout << "HLS algo = " << algo_name << "\n";
+	std::cout << "DFG name = " << check_dfg_name << endl;
+	std::cout << "HLS algo = " << algo_name << endl;
 
 	string filename, dfg_name;
 	filename = "DFG//" + check_dfg_name + ".txt";
 	//Read_DFG(DFG, filename, dfg_name); //read DFG filename
 
-	//get delay structure;
-	string lib_filename = "lib.txt";
-	Lib lib;
-
-	vector<int> delay, lp, dp;
-	delay.clear();
-	READ_LIB(lib_filename, delay, lp, dp);
-
-	int edge_num = 0;
 	readGraphInfo(filename, edge_num, opn); //read DFG info
 
-	//initialize resource constraint function.
-	int rc[2];
-	rc[0] = 0;
-	rc[1] = 0;
+	std::string DFG_name;
+	std::map<int, string> FU_type;
+	FU_type.clear();
 
-	int all_error = 0;
-	ops.clear();
+	std::map<string, int> FU_type_name_to_id;
+	FU_type_name_to_id.clear();
 
 	//read s&b results:
 	S sb_res;
-	//	New Change for ML-RCS, add "rc".
-	get_S_structure(input_filename, sb_res, LC, rc);
+	sb_res.bind.clear();
+	sb_res.fu_info.clear();
+	sb_res.schedule.clear();
+
+	std::map<int, int> delay, reported_FUs, rc;
+	delay.clear();
+	reported_FUs.clear();
+	rc.clear();
+
+
+	get_S_structure(input_filename, DFG_name, FU_type, rc, reported_FUs, delay, FU_type_name_to_id,
+		LC, sb_res);
+
+	cout << "reported FUs ADD = " << reported_FUs[0] << " MUL = " << reported_FUs[1] << endl;
+	cout << "delay of ADD = " << delay[0] << " MUL = " << delay[1] << endl;
 
 	int dependency_error = 0;
+
 	std::map<int, int> error_pair;
 	error_pair.clear();
 
@@ -202,8 +367,8 @@ int main(int argc, char** argv)
 			if (max_resource[type] < FU_usage[type][cc])
 				max_resource[type] = FU_usage[type][cc];
 
-	std::cout << "# of ADD used = " << max_resource[0] << " , ADD resource constraint = " << rc[0] << endl;
-	std::cout << "# of MUL used = " << max_resource[1] << " , MUL resource constraint = " << rc[1] << endl;
+	std::cout << "# of ADD used (derived from your schl solution) = " << max_resource[0] << " , reported # of ADD used = " << reported_FUs[0] << " , ADD resource constraint = " << rc[0] << endl;
+	std::cout << "# of MUL used (derived from your schl solution) = " << max_resource[1] << " , reported # of MUL used = " << reported_FUs[1] << " , MUL resource constraint = " << rc[1] << endl;
 
 	if (max_resource[0] > rc[0])
 	{
@@ -215,6 +380,18 @@ int main(int argc, char** argv)
 		fu_overlapped_error++; //increment # of total errors.
 		std::cout << "Resource constraint for MUL is not satisfied. RC of MUL = " << rc[1] << " Max usage of MUL = " << max_resource[1] << endl;
 	}
+
+	if (reported_FUs[0] != max_resource[0])
+	{
+		fu_overlapped_error++; //increment # of total errors.
+		std::cout << "Actual and reported ADD used are not the same." << endl;
+	}
+
+	if (reported_FUs[1] != max_resource[1]) {
+		fu_overlapped_error++; //increment # of total errors.
+		std::cout << "Actual and reported MUL used are not the same." << endl;
+	}
+
 
 	std::cout << "Actual Latency = " << actual_latency << " Reported latency = " << LC << endl;
 	if (actual_latency != LC) {
@@ -276,86 +453,103 @@ bool parse_filename_by_algo(const std::string& filename,
 // void get_S_structure(string& filename, S& s, int& LC, int rc[2]);
 
 //replace the function below in "checker.cpp" (starting from line-196).
-void get_S_structure(string& filename, S& s, int& LC, int rc[2])
+int get_S_structure(string& filename, string& DFG_name, std::map<int, string>& FU_type, std::map<int, int>& FU_constraint, std::map<int, int>& reported_FUs, std::map<int, int>& FU_delay, std::map<string, int>& FU_type_name_to_id,
+	int& actual_latency_reported, S& s)
 {
-	std::string lineStr;
-	std::ifstream ifs(filename);
-	std::string line;
+	std::ifstream fin(filename);
+	if (!fin) {
+		std::cerr << "Error: cannot open file: " << filename << std::endl;
+		return 1;
+	}
 
-	std::cout << "filename = " << filename << endl;
+	std::string rawLine;
+	std::string firstLine;
+	std::vector<std::string> fuLines;
+	std::string latencyLine;
+	std::vector<std::string> restLines;
 
-	s.schedule.clear();
-	s.bind.clear();
-	s.fu_info.clear();
+	//using an idea of finite state machine (FSM): 3 different states.
+	enum State {
+		WAIT_FIRST_LINE = 0,
+		FU_SECTION_BEFORE_LATENCY,
+		AFTER_LATENCY
+	};
 
-	int counter = 0;
+	State state = WAIT_FIRST_LINE;
 
-	while (std::getline(ifs, line))
-	{
-		/*
-			New Change for ML-RCS:
-		*/
-		//line-0 here is the resource constraint info for ADD
-		if (counter == 0) {
-			std::istringstream iss(line);
-			string type;
-			int num;
+	while (std::getline(fin, rawLine)) {
+		std::string line = trim(rawLine);
 
-			if (!(iss >> type >> num))
-				break;
-			else
-				rc[0] = num;
+		// Skip empty (blank) lines
+		if (line.empty()) {
+			continue;
 		}
-		// line-1 here is the resouce constraint info for MUL
-		else if (counter == 1) {
-			std::istringstream iss(line);
-			string type;
-			int num;
 
-			if (!(iss >> type >> num))
-				break;
-			else
-				rc[1] = num;
+		// Skip comment lines starting with "//" (after trimming)
+		if (line.rfind("//", 0) == 0) {
+			continue;
 		}
-		else if (counter == 3)
-		{
-			//line-3 here is used to read single actual latency info and you should modify it to your actual latency instead of using LC for MR-LCS.
-			std::istringstream iss(line);
-			string a;
-			int lc;
-			if (!(iss >> a >> lc))
-			{
-				break;
+
+		if (state == WAIT_FIRST_LINE) {
+			// First valid line: DFG name
+			firstLine = line;
+			state = FU_SECTION_BEFORE_LATENCY;
+			continue;
+		}
+
+		if (state == FU_SECTION_BEFORE_LATENCY) {
+			// Check if this line contains "latency" (case-insensitive)
+			std::string lower_line = to_lower(line);
+			if (lower_line.find("latency") != std::string::npos) {
+				latencyLine = line;
+				state = AFTER_LATENCY;
 			}
 			else {
-				LC = lc;
+				// FU-type line
+				fuLines.push_back(line);
+
+
 			}
 		}
-		else if (counter > 3)
-		{
-			//other lines are op S&B info.
-			std::istringstream iss(line);
-			string type;
-			int op_id, fu_id, cc;
-			if (!(iss >> op_id >> cc >> fu_id))
-			{
-				break;
-			}
-			else
-			{
-				//obtain op_id, fu_id, cc, fu-type;
-				s.schedule[op_id] = cc;
-				s.bind[op_id] = fu_id;
-			}
-
-
+		else if (state == AFTER_LATENCY) {
+			// All lines after the latency line
+			restLines.push_back(line);
 		}
-
-		counter++;
 	}
+
+	// Check if we have found the latency line
+	if (latencyLine.empty()) {
+		std::cerr << "Error: no \"latency\" line found." << std::endl;
+		return 1;
+	}
+
+	// Check FU-type count limit (max 8)
+	if (fuLines.size() > 8) {
+		std::cerr << "Error: number of FU types exceeds the maximum limit of 8. " << std::endl;
+		return 1;
+	}
+
+	// ===================== Call func1, func2, func3, func4 =====================
+
+   // 1) First line: DFG name
+	func1(firstLine, DFG_name);
+
+	// 2) FU-type lines (2nd to at most 9th valid line)
+	for (int i = 0; i < static_cast<int>(fuLines.size()); ++i) {
+		func2(fuLines[i], FU_type, FU_constraint, reported_FUs, FU_delay, FU_type_name_to_id);  // fuTypeID = i
+	}
+
+	// 3) "actual latency" line
+	func3(latencyLine, actual_latency_reported);
+
+	// 4) All lines after the "actual latency" line: ops
+	for (const auto& l : restLines) {
+		func4(l, s);
+	}
+
+	return 0;
+
 }
-
-
 
 /*
 *
