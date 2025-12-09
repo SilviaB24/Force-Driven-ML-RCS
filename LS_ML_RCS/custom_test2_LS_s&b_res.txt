@@ -1,0 +1,17 @@
+add 1
+mul 1
+div 1
+add 1
+mul 2
+div 3
+DFG name: custom_test2
+Actual Latency 8
+0 4 0
+1 1 0
+2 5 0
+3 3 0
+4 5 1
+5 7 1
+6 1 1
+7 2 1
+8 2 0

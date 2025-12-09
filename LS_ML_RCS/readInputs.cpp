@@ -130,6 +130,14 @@ void Read_DFG(int& DFG, string& filename, string& dfg_name)
 	else if (DFG == 22)
 		filename = "DFG//random7.txt";
 
+	// IMPLEMENTED BY SILVIA
+	else if (DFG == 23)
+		filename = "DFG//custom_test1.txt";
+	else if (DFG == 24)
+		filename = "DFG//custom_test2.txt";
+
+	// END IMPLEMENTED BY SILVIA
+
 	dfg_name = filename.substr(5);
 }
 
@@ -204,7 +212,18 @@ void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_No
 				else if (strcmp(tok, "LOD") == 0) ops[node_id].type = 0;
 				else if (strcmp(tok, "STR") == 0) ops[node_id].type = 0;
 				else if (strcmp(tok, "SUB") == 0) ops[node_id].type = 0;
-				else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 1;
+
+
+				// CHANGED BY SILVIA
+
+				// CHANGE THIS TO SET DIVISION AS A DIFFERENT TYPE
+				else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 2;
+
+				// USE DIV AS MUL TYPE
+				//else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 1;
+
+				// END CHANGED BY SILVIA
+				
 				ops[node_id].id = node_id;
 				node_id++;
 			}

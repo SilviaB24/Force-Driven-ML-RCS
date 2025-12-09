@@ -1,0 +1,20 @@
+digraph hal1 {
+    node [fontcolor=white,style=filled,color=blue2];
+    ADD_1 [label = ADD ];
+    ADD_2 [label = ADD ];
+    ADD_3 [label = ADD ];
+    ADD_4 [label = ADD ];
+    MUL_5 [label = MUL ];
+    MUL_6 [label = MUL ];
+    MUL_7 [label = MUL ];
+
+    DIV_8 [label = DIV ];
+    ADD_9 [label = ADD ];
+
+    ADD_1 -> MUL_5 [ name = 1 ];
+    MUL_5 -> MUL_6 [ name = 2 ];
+    ADD_2 -> DIV_8 [ name = 3 ];
+    DIV_8 -> ADD_3 [ name = 4 ];
+    MUL_7 -> ADD_4 [ name = 5 ];
+    ADD_4 -> DIV_9 [ name = 6 ];
+}

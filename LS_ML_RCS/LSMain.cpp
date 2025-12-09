@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 1; DFG <= 1; DFG++) {
+	for (DFG = 24; DFG <= 24; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
@@ -57,7 +57,10 @@ int main(int argc, char** argv)
 		//this is used to store ops in different types.
 		std::map<int, int> types;
 
-		for (auto i = 0; i < 2; i++)
+		// CHANGED BY SILVIA: flexible num of resourse types
+		for (auto i = 0; i < delay.size(); i++)
+
+		// END CHANGED BY SILVIA
 			types[i] = 0;
 		for (auto i = 0; i < opn; i++)
 			types[ops[i].type]++;

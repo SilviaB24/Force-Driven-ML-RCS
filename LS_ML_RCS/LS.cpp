@@ -2,12 +2,14 @@
 
 using namespace std;
 
-const int numberOfFunctionType = 2;	//the number of Function types in the input FU library. 
 
 struct Sclbld				//S&B solution
 {
 	int achievedLatency;				//achieved latency
-	int res[numberOfFunctionType];		//count the number of FUs of each function type used in the S&B solution
+
+	//CHANGED BY SILVIA
+	vector<int> res;					//count the number of FUs of each function type used in the S&B solution
+	//END CHANGED BY SILVIA
 	vector<int> scl;					//save the scheduled cc of each operation in the S&B solution
 	vector<vector<vector<int>>> bld;	//[function type of the FU][number of the FU][operations bound to the FU]
 };
@@ -121,6 +123,10 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 	getLC(latencyConstraint, latencyParameter, ops, delay);
 	ALAP(ops, delay, latencyConstraint);
 
+	// CHANGED BY SILVIA
+	int numberOfFunctionType = res_constr.size();
+	// END CHANGED BY SILVIA
+
 	Sclbld sclbld;
 
 	int opn = ops.size(); //# of operations in this DFG.
@@ -167,6 +173,11 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 	currentClockCycle = 1;
 	sclbld.scl.assign(opn, 0);
+
+	// CHANGED BY SILVIA
+	sclbld.res.assign(numberOfFunctionType, 0);
+	// END CHANGED BY SILVIA
+
 	sclbld.bld = vector<vector<vector<int>>>(numberOfFunctionType, vector<vector<int>>(1, vector<int>(0)));
 
 	//initialize time[][] and res[] according to pre-allocation
@@ -564,6 +575,8 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
                               std::vector<int>& delay)
 {
     if (available_ops.empty()) return;
+
+	int numberOfFunctionType = delay.size();
 
     // Derive a target latency horizon from ALAP values:
     //    L_target = max_u (ALAP(u) + latency(u) - 1)
