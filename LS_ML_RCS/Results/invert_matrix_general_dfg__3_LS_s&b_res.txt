@@ -1,11 +1,11 @@
-add 1
-mul 1
-div 1
-add 1
-mul 2
-div 3
-DFG name: invert_matrix_general_dfg__3
-Actual Latency 282
+// The next line is the dfg name
+invert_matrix_general_dfg__3
+// The next lines are FU parameters given as:
+// <FU type>  <resource constraint>  <# of FUs used>  <FU delay>
+ADD 1 1 1
+MUL 1 1 2
+DIV 1 1 3
+actual latency 282
 0 1 2
 1 1 1
 2 3 0

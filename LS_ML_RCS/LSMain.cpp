@@ -139,29 +139,39 @@ int main(int argc, char** argv)
 		output_sb_result.open(output_sb_res, ios::out);
 
 
-		// IMPLEMENTED BY SILVIA
+		// IMPLEMENTED BY SILVIA, UPDATED BY PLEASE
 
-		for (auto i = 0; i < delay.size(); i++)
-			// LINES 1, 2: function type, resource constraint
-			output_sb_result << res_type[i] << " " << res_constr[i] << endl;
+		// Comment: DFG name
+		output_sb_result << "// The next line is the dfg name" << endl;
+		output_sb_result << DFGname << endl;
 
-		for (auto i = 0; i < delay.size(); i++)
-			// LINES 3, 4: function type, delay
-			output_sb_result << res_type[i] << " " << delay[i] << endl;
+		// Comment: FU parameters description
+		output_sb_result << "// The next lines are FU parameters given as:" << endl;
+		output_sb_result << "// <FU type>  <resource constraint>  <# of FUs used>  <FU delay>" << endl;
 
-		// LINE 5: DFG Name
-		output_sb_result << "DFG name: " << DFGname << endl;
+		// One line per FU type (non-comment lines 1..k)
+		int numTypes = static_cast<int>(delay.size());
+		for (int t = 0; t < numTypes; ++t) {
+			std::string typeName = res_type[t];      // e.g., "ADD", "MUL", "DIV"
+			std::transform(typeName.begin(), typeName.end(), typeName.begin(), ::toupper);
+			int rc   = res_constr[t];               // resource constraint
+			int used = FUAllocationResult[t];       // # of FUs used for this type
+			int d    = delay[t];                    // FU delay
 
-		// LINE 6: latency obtained
-		output_sb_result << "Actual Latency " << actualLatency << endl;
+			output_sb_result << typeName << " " << rc << " " << used << " " << d << endl;
+		}
 
-		// LINE 7 -> END: detailed scheduling & binding result
-		// Format: " <oper-ID> <schl-time>  <FU-binding ID>
-		for (auto i = 0; i < opn; i++)
+		// Line after FU params: actual latency
+		output_sb_result << "actual latency " << actualLatency << endl;
+
+		// Remaining lines: detailed S&B result
+		// Format: "<oper-ID> <schl-time> <FU-binding ID>"
+		for (int i = 0; i < opn; ++i) {
 			output_sb_result << i << " " << schlResult[i] << " " << opBindingResult[i] << endl;
-
+		}
 
 		// END IMPLEMENTED BY SILVIA
+
 
 
 		output_sb_result.close();
