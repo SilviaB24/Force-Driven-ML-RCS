@@ -9,7 +9,7 @@ digraph hal1 {
     MUL_7 [label = MUL ];
 
     DIV_8 [label = DIV ];
-    ADD_9 [label = ADD ];
+    DIV_9 [label = DIV ];
 
     ADD_1 -> MUL_5 [ name = 1 ];
     MUL_5 -> MUL_6 [ name = 2 ];

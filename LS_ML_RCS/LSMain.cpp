@@ -1,5 +1,18 @@
 #include "LS.h"
 
+
+// IMPLEMENTED BY SILVIA
+#ifdef _WIN32
+    #include <direct.h>   // Windows-specific header
+    #define MAKE_DIR(name) _mkdir(name)
+#else
+    #include <sys/stat.h> // macOS/Linux-specific header
+    #include <sys/types.h>
+    #define MAKE_DIR(name) mkdir(name, 0777)
+#endif
+// END IMPLEMENTED BY SILVIA
+
+
 using namespace std;
 
 double latencyParameter = 1;	 //latency constant parameter, change this parameter can affect the latency constraint and hence, the final scheduling result is changed
@@ -39,7 +52,7 @@ int main(int argc, char** argv)
 	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 24; DFG <= 24; DFG++) {
+	for (DFG = 1; DFG <= 24; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
@@ -115,7 +128,13 @@ int main(int argc, char** argv)
 				DFGname = tok;
 			//cout << tok << endl;
 		}
-		string output_sb_res = DFGname + "_LS_s&b_res.txt";
+
+		// IMPLEMENTED BY SILVIA
+		MAKE_DIR("Results");
+
+		string output_sb_res = "Results/" + DFGname + "_LS_s&b_res.txt";
+		
+		// END IMPLEMENTED BY SILVIA
 
 		output_sb_result.open(output_sb_res, ios::out);
 
