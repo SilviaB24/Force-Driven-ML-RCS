@@ -177,6 +177,9 @@ void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_No
 
 		// IMPLEMENTED BY SILVIA
 		curr.criticalSuccessorId = -1; // Initialize criticalSuccessorId
+		curr.priority1 = 0.0f; // Initialize priority1
+		curr.priority2 = 0.0f; // Initialize priority2
+		curr.priority3 = 0; // Initialize priority3
 		// END IMPLEMENTED BY SILVIA
 		
 		ops[i] = curr;
@@ -255,7 +258,18 @@ void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_No
 				else if (strcmp(tok, "LOD") == 0) ops[node_id].type = 0;
 				else if (strcmp(tok, "STR") == 0) ops[node_id].type = 0;
 				else if (strcmp(tok, "SUB") == 0) ops[node_id].type = 1;
-				else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 1;
+
+				
+				// CHANGED BY SILVIA
+
+				// CHANGE THIS TO SET DIVISION AS A DIFFERENT TYPE
+				else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 2;
+
+				// USE DIV AS MUL TYPE
+				//else if (strcmp(tok, "DIV") == 0) ops[node_id].type = 1;
+
+				// END CHANGED BY SILVIA
+
 				ops[node_id].id = node_id;
 				node_id++;
 			}

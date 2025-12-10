@@ -31,11 +31,13 @@ struct SortSlack {
 
 
 
-// IMPLEMENTED BY SILVIA
-
-bool DEBUG = false;
 
 struct PrioritySorting {
+
+	bool use_featS;
+
+	PrioritySorting(bool active) : use_featS(active) {}
+
 	bool operator()(const std::pair<int, G_Node>& a, const std::pair<int, G_Node>& b) {
 		
 		if (a.second.priority1 != b.second.priority1) {
@@ -43,15 +45,21 @@ struct PrioritySorting {
         }
 		
 		// SILVIA'S NEW IMPROVEMENT IDEA:
-		if (a.second.priority2 != b.second.priority2) {
-			return a.second.priority2 < b.second.priority2;
+
+		if (use_featS) {
+				
+			if (a.second.priority2 != b.second.priority2) {
+				return a.second.priority2 < b.second.priority2;
+			}
+
+			return a.second.priority3 < b.second.priority3;
 		}
 
-		return a.second.priority3 < b.second.priority3;
+		return a.first < b.first;
+
 		// END OF SILVIA'S NEW IMPROVEMENT IDEA
 	}
 };
-// END IMPLEMENTED BY SILVIA
 
 
 
@@ -66,15 +74,15 @@ void getLC(int& LC, double& latency_parameter, std::map<int, G_Node>& ops, std::
 
 
 // IMPLEMENTED BY PLEASE
-void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
+void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP);
 // END IMPLEMENTED BY PLEASE
 
 
 
 // IMPLEMENTED BY SILVIA
 void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution);
-void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution, bool debug, bool featS, bool featP);
+void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP);
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 // END IMPLEMENTED BY SILVIA
@@ -83,13 +91,13 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
 // IMPLEMENTED BY SILVIA
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr)
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP)
 {
 
 	int starting_high_latency = 100000;
 	// Get latency constraint upper bound
 	LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, starting_high_latency, latencyParameter, delay, res_constr, false);
+			ops, starting_high_latency, latencyParameter, delay, res_constr, false, debug, featS, featP);
 	
 	int target_latency = actualLatency;
 	int iteration_count = 0;
@@ -103,7 +111,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 		// calculate priorities
 
 		LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, target_latency, latencyParameter, delay, res_constr, true);
+			ops, target_latency, latencyParameter, delay, res_constr, true, debug, featS, featP);
 
 		target_latency = actualLatency - 1;
 
@@ -120,7 +128,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 
 void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution)
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution, bool debug, bool featS, bool featP)
 {
 	ASAP(ops, delay);
 	getLC(latencyConstraint, latencyParameter, ops, delay);
@@ -260,11 +268,11 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 				// Calculate priorities for available operations
 				if (improvedSolution) {
 					
-					calculate_priorities(tempOpSet, ops, delay);
+					calculate_priorities(tempOpSet, ops, delay, debug, featP);
 
 					// Debug info
 
-					if (DEBUG) {
+					if (debug) {
 						cout << "\n[DEBUG] Cycle " << currentClockCycle << " - Resource Type " << currentFunctionType << endl;
 						cout << "Candidates available: " << tempOpSet.size() << endl;
 						cout << "ID\tPrio1(F)\tPrio2(Succ)\tPrio3(Child)" << endl;
@@ -281,7 +289,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 					}
 
 					//sort operations in increasing Priority order
-					std::sort(tempOpSet.begin(), tempOpSet.end(), PrioritySorting());
+					std::sort(tempOpSet.begin(), tempOpSet.end(), PrioritySorting(featS));
 				} else {
 					//sort operations in increasing slack order
 					std::sort(tempOpSet.begin(), tempOpSet.end(), SortSlack());
@@ -461,6 +469,7 @@ int checkChild(G_Node* op, std::vector<int>& delay, int& LC)
 
 				// IMPLEMENTED BY SILVIA
 				op->criticalSuccessorId = (*it)->id;
+				cout << "DEBUG: Node " << op->id << " critical succ set to " << (*it)->id << endl;
 				// END IMPLEMENTED BY SILVIA
 			}
 			continue;
@@ -528,10 +537,10 @@ void calculate_fds_graphs(std::map<int, G_Node> ops, std::vector<std::vector<flo
 }
 
 
-void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay)
+void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP)
 {
 
-	calculate_first_priority(available_ops, ops, delay);
+	calculate_first_priority(available_ops, ops, delay, debug, featP);
 	
 	// SILVIA'S NEW IMPROVEMENT IDEA
 	calculate_second_priority(available_ops, ops, delay);
@@ -593,7 +602,7 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
 void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops,
                               std::map<int, G_Node>& ops,
-                              std::vector<int>& delay)
+                              std::vector<int>& delay, bool debug, bool featP)
 {
     if (available_ops.empty()) return;
 
@@ -713,7 +722,7 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
     }
 
 
-	if (DEBUG) {
+	if (debug) {
 		cout << "\n[DEBUG PRIORITY 1 DETAILS]" << endl;
 		cout << "ID\tS_raw\tS_norm\tC_raw\tC_norm\tFinal_F" << endl;
 

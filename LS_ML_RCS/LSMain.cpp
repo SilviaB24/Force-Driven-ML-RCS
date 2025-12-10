@@ -23,7 +23,7 @@ int edge_num = 0;
 //G_Node* ops; //operations list
 
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
-	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr);
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP);
 
 ofstream output_sb_result;
 
@@ -32,11 +32,22 @@ int main(int argc, char** argv)
 
 	//read "lib"
 	//get delay structure: only ADD/MUL are needed. you can change delay of ADD/MUL (# of cc's) in "lib.txt" file.
-	string filename = "lib.txt";
-
+    std::string filename = "lib.txt"; 
 	std::vector<int> delay, lp, dp;
-
+	
 	// IMPLEMENTED BY SILVIA
+
+	// Command-line arguments for debugging and features activation
+    bool debug = false;
+    bool featS = false;
+    bool featP = false;
+
+    if (argc >= 4) {
+        debug = (std::stoi(argv[1]) != 0);
+        featS = (std::stoi(argv[2]) != 0);
+        featP = (std::stoi(argv[3]) != 0);
+    }
+
 	std::vector<int> res_constr;
 	std::vector<string> res_type;
 
@@ -52,7 +63,7 @@ int main(int argc, char** argv)
 	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 1; DFG <= 24; DFG++) {
+	for (DFG = 23; DFG <= 23; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
@@ -61,6 +72,15 @@ int main(int argc, char** argv)
 		string filename, dfg_name;
 		Read_DFG(DFG, filename, dfg_name);			//read DFG filename
 		readGraphInfo(filename, edge_num, opn, ops); //read DFG info
+
+		if (debug) {
+			std::cout << "DFG " << DFG << " read from file " << filename << " with " << opn << " operations and " << edge_num << " edges.\n";
+
+			for (const auto& [id, node] : ops) {
+				std::cout << "Node ID: " << id << ", Type: " << node.type
+					<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
+			}
+		}
 
 		std::map<int, int> ops_schl_cc, ops_schl_FU, FU_type;
 		ops_schl_cc.clear();
@@ -94,7 +114,7 @@ int main(int argc, char** argv)
 		// CHANGED BY SILVIA
 
 		LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, latencyConstraint, latencyParameter, delay, res_constr);
+			ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
 
 		// END CHANGED BY SILVIA
 
