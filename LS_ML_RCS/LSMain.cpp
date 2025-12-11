@@ -11,6 +11,9 @@
     #define MAKE_DIR(name) mkdir(name, 0777)
 #endif
 
+
+#include <chrono>
+
 // END IMPLEMENTED BY SILVIA
 
 
@@ -28,7 +31,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 
 // IMPLEMENTED BY SILVIA
-void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs);
+void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs, double runtimeMs);
 void LoadConstraints(const string& filename, std::map<string, ConstraintData>& db);   
 // END IMPLEMENTED BY SILVIA
 
@@ -43,6 +46,7 @@ int main(int argc, char** argv)
 	std::vector<int> delay, lp, dp;
 	
 	// IMPLEMENTED BY SILVIA
+	string algName = "LS_Improved";
 
 	// Command-line arguments for debugging and features activation
     bool debug = false;
@@ -148,8 +152,18 @@ int main(int argc, char** argv)
 
 		// CHANGED BY SILVIA
 
+		// Start the timer
+		auto start_time = std::chrono::high_resolution_clock::now();
+
 		LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
 			ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
+
+		// Stop the timer
+		auto end_time = std::chrono::high_resolution_clock::now();
+
+		
+        std::chrono::duration<double, std::milli> duration = end_time - start_time;
+        double runtime_ms = duration.count();
 
 		// END CHANGED BY SILVIA
 
@@ -229,7 +243,7 @@ int main(int argc, char** argv)
 		}
 
 		// Write results to a CSV file
-        WriteResultToCSV(DFGname, data_type, featS, featP, constraints_db[dfg_name].targetLatency, actualLatency, totalFUs);
+        WriteResultToCSV(algName, DFGname, data_type, featS, featP, constraints_db[dfg_name].targetLatency, actualLatency, totalFUs, runtime_ms);
         
 
 		// END IMPLEMENTED BY SILVIA
@@ -286,15 +300,16 @@ void LoadConstraints(const string& filename, std::map<string, ConstraintData>& d
 
 
 // Function to write results to a CSV file
-void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs) {
-    
+void WriteResultToCSV(string algName, string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs, double runtimeMs)
+{    
     // Dynamically create filename based on features and mode 
     string clean_data_type = data_type.substr(1);
     
     stringstream ssFileName;
-    ssFileName << "Results_" << clean_data_type 
-               << "_FeatS" << featS 
-               << "_FeatP" << featP 
+    ssFileName << "Results_" << algName
+			   << "_" << clean_data_type 
+               << "_S" << featS 
+               << "_P" << featP 
                << ".csv";
     
     string fileName = ssFileName.str();
@@ -319,7 +334,8 @@ void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, 
             << actualLat << "," 
             << (actualLat - targetLat) << ","
             << status << ","
-            << totalFUs << "\n";
+            << totalFUs << "\n"
+			<< runtimeMs << "\n";
             
     csvFile.close();
 }
