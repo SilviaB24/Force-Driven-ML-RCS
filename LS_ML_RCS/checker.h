@@ -29,12 +29,15 @@ struct G_Node    //save the info for operation node
 	int type; //node Function-type
 	list<G_Node*> child;   // successor nodes (distance = 1)
 	list<G_Node*> parent;  // predecessor nodes (distance = 1)
-	int asap, alap, tasap, talap;	// T-asap, T-alap (in # of clock cycle), Temp-Tasap, Temp-Talap;
-	bool schl, tschl;	//bool, = 1 scheduled; =0 not
+	int asap, alap;
+	bool schl;
 
-	int prev_asap, prev_alap;
-
-	int fuid;
+	// IMPLEMENTED BY SILVIA
+	int criticalSuccessorId; // ID of the critical successor node
+	float priority1; // priority value for FDS-based scheduling
+	float priority2; // second priority value for FDS-based scheduling
+	int priority3; // third priority value for FDS-based scheduling
+	// END IMPLEMENTED BY SILVIA
 };
 
 //Local-PG part:
@@ -76,7 +79,7 @@ void READ_LIB(const string& file_name,
 
 void Read_DFG(int& DFG, string& filename, string& dfg_name); //Read-DFG filename
 
-void readGraphInfo(string& filename, int& edge_num, int& opn);
+void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_Node>& ops);
 
 //			New Change for ML-RCS: adding "int rc[2]"
 int get_S_structure(string& filename, string& DFG_name, std::map<int, string>& FU_type, std::map<int, int>& FU_constraint, std::map<int, int>& reported_FUs, std::map<int, int>& FU_delay, std::map<string, int>& FU_type_name_to_id,

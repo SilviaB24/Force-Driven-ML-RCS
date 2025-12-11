@@ -1,2 +1,0 @@
-DFG_Name,Target_Latency(FALLS),Actual_Latency(Project),Delta,Status,FUs_Used
-hal_4type_uniform,0,21,21,FAIL,4

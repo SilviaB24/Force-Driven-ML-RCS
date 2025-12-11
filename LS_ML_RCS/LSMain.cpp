@@ -31,7 +31,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 
 // IMPLEMENTED BY SILVIA
-void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs, double runtimeMs);
+void WriteResultToCSV(string algName, string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs, double runtimeMs);
 void LoadConstraints(const string& filename, std::map<string, ConstraintData>& db);   
 // END IMPLEMENTED BY SILVIA
 
@@ -84,8 +84,8 @@ int main(int argc, char** argv)
 			std::cout << "Function ID: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << ", ResType: " << res_type[i] << std::endl;
 	}
 
-	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 1; DFG <= 24; DFG++) {
+	//iterate all DFGs from 0 to 22 (the 16-22 are random DFGs)
+	for (DFG = 0; DFG <= 22; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
@@ -116,6 +116,12 @@ int main(int argc, char** argv)
 				cout << "Type " << res_type[i] << ": " << res_constr[i] << "  ";
 			}
 			cout << endl << endl;
+		}
+
+		// If no resource constraint found for this DFG skip it
+		if (res_constr.empty()) {
+			cout << "Warning: No resource constraints found for DFG " << DFG << " (" << clean_dfg_name << "). Skipping this DFG." << endl;
+			continue;
 		}
 
 		// END IMPLEMENTED BY SILVIA
@@ -189,7 +195,7 @@ int main(int argc, char** argv)
 		cout << endl;
 		cout << endl;
 
-		std::cout << "For the current DFG " << DFG << ", the actual Latency is " << actualLatency << " (latency constraint is " << latencyConstraint << ")," << " # of total FUs used = " << totalFUs << endl;
+		std::cout << "For the current DFG " << DFG << ", the actual Latency is " << actualLatency << " (target latency is " << constraints_db[clean_dfg_name].targetLatency << ")," << " # of total FUs used = " << totalFUs << endl;
 
 		//get output s&b result file.
 		string DFGname;
@@ -203,8 +209,15 @@ int main(int argc, char** argv)
 
 		// IMPLEMENTED BY SILVIA
 		MAKE_DIR("Results");
+		
+		stringstream ssFileName;
+		ssFileName << "Results/" << algName
+				<< "_" << DFGname
+				<< "_S" << featS 
+				<< "_P" << featP 
+				<< ".txt";
 
-		string output_sb_res = "Results/" + DFGname + "_LS_s&b_res.txt";
+		string output_sb_res = ssFileName.str();
 		
 		// END IMPLEMENTED BY SILVIA
 
@@ -243,7 +256,7 @@ int main(int argc, char** argv)
 		}
 
 		// Write results to a CSV file
-        WriteResultToCSV(algName, DFGname, data_type, featS, featP, constraints_db[dfg_name].targetLatency, actualLatency, totalFUs, runtime_ms);
+        WriteResultToCSV(algName, DFGname, data_type, featS, featP, constraints_db[clean_dfg_name].targetLatency, actualLatency, totalFUs, runtime_ms);
         
 
 		// END IMPLEMENTED BY SILVIA
@@ -321,7 +334,7 @@ void WriteResultToCSV(string algName, string dfgName, string data_type, bool fea
     // If new/empty file write the header
     csvFile.seekp(0, ios::end);
     if (csvFile.tellp() == 0) {
-        csvFile << "DFG_Name,Target_Latency(FALLS),Actual_Latency(Project),Delta,Status,FUs_Used\n";
+        csvFile << "DFG_Name,Target_Latency(FALLS),Actual_Latency(Project),Delta,Status,FUs_Used,Runtime_ms\n";
     }
     
     // Calculate status: if achieved better or equal latency than target it's a PASS
@@ -334,7 +347,7 @@ void WriteResultToCSV(string algName, string dfgName, string data_type, bool fea
             << actualLat << "," 
             << (actualLat - targetLat) << ","
             << status << ","
-            << totalFUs << "\n"
+            << totalFUs << ","
 			<< runtimeMs << "\n";
             
     csvFile.close();

@@ -24,14 +24,17 @@ if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
     echo ""
     echo "Modes:"
     echo -e "  ${GREEN}run${NC}                Compile and run the scheduler."
-    echo -e "  ${GREEN}check [file]${NC}       Compile and run the checker on the specified file."
+    echo -e "  ${GREEN}check${NC}       Compile and run the checker on the specified file."
     echo ""
     echo "Options for 'run' mode:"
-    echo "  --debug            Enable debug mode."
-    echo "  --featS            Enable feature S for priority calculation."
-    echo "  --featP            Enable feature P for priority calculation."
-    echo "  --uniform          Run with UNIFORM distribution (default is InvDelay)."
-    echo "  --invdelay         Run with INVERSE DELAY distribution."
+    echo -e " ${YELLOW}--debug${NC}            Enable debug mode."
+    echo -e " ${YELLOW}--featS${NC}            Enable feature S for priority calculation."
+    echo -e " ${YELLOW}--featP${NC}            Enable feature P for priority calculation."
+    echo -e " ${YELLOW}--uniform${NC}          Run with UNIFORM distribution (default is InvDelay)."
+    echo -e " ${YELLOW}--invdelay${NC}         Run with INVERSE DELAY distribution."
+    echo ""
+    echo "Options for 'check' mode:"
+    echo -e " ${YELLOW}[file]${NC}             Input file to check (single file for check or CSV for report generation)."
     exit 0
 fi
 
@@ -66,6 +69,7 @@ if [ "$MODE" == "run" ]; then
 
     # Compile the scheduler
     echo -e "${CYAN}[BUILD] Compiling scheduler...${NC}"
+    echo ""
     g++ -std=c++17 -O3 -I. LSMain.cpp LS.cpp readInputs.cpp -o scheduler
 
     # Run the scheduler
@@ -83,17 +87,43 @@ elif [ "$MODE" == "check" ]; then
 
     # Compile the checker
     echo -e "${CYAN}[BUILD] Compiling checker...${NC}"
+    echo ""
     g++ -std=c++17 -I. checker.cpp -o checker_mac         
 
     # Run the checker
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}[BUILD] Checker compiled. Running checks...${NC}"
-        CHECKER_FILE_NAME=$2
-        if [ -z "$CHECKER_FILE_NAME" ]; then
-            echo -e "${RED}[ERROR] No file specified for checking.${NC}"
+
+        INPUT_FILE=$2
+
+        if [ -z "$INPUT_FILE" ]; then
+            echo -e "${RED}[ERROR] Missing input file.${NC}"
             exit 1
         fi
-        ./checker_mac $CHECKER_FILE_NAME
+
+        if [[ "$INPUT_FILE" == *.csv ]]; then
+
+            # If CSV file is provided a report will be generated
+            echo -e "${CYAN}[REPORT] Generating Excel report from $INPUT_FILE...${NC}"
+            if [ -f "run_checker.py" ]; then
+                python3 run_checker.py "$INPUT_FILE" "./checker_mac" "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
+            else
+                echo -e "${RED}[ERROR] run_checker.py not found.${NC}"
+                exit 1
+            fi
+
+        else
+            # If single file is provided simply check that file
+            if [ -f "$INPUT_FILE" ]; then
+                echo -e "${CYAN}[CHECK] Verifying single file: $INPUT_FILE...${NC}"
+                ./checker_mac "$INPUT_FILE"
+            else
+                echo -e "${RED}[ERROR] Input file not found.${NC}"
+                exit 1
+            fi
+
+        fi
+
     else 
         echo -e "${RED}[ERROR] Checker compilation failed.${NC}"
         exit 1
