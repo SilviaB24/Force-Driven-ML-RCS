@@ -3,9 +3,9 @@ custom_test1
 // The next lines are FU parameters given as:
 // <FU type>  <resource constraint>  <# of FUs used>  <FU delay>
 ADD 1 1 1
-MUL 1 1 2
+MUL 1 1 1
 DIV 1 0 3
-actual latency 8
+actual latency 7
 0 1 0
 1 2 0
 2 3 0

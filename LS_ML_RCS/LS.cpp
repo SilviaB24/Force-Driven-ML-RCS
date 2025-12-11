@@ -102,6 +102,10 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 	int target_latency = actualLatency;
 	int iteration_count = 0;
 
+	if (debug){
+		cout << "Initial Target Latency: " << target_latency << endl;
+	}
+
 	while (iteration_count < MAX_ITERATIONS){
 
 		iteration_count++;
@@ -131,7 +135,15 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution, bool debug, bool featS, bool featP)
 {
 	ASAP(ops, delay);
-	getLC(latencyConstraint, latencyParameter, ops, delay);
+
+	
+	// CHANGED BY SILVIA
+	if (!improvedSolution) {
+        getLC(latencyConstraint, latencyParameter, ops, delay);
+    }
+	// END CHANGED BY SILVIA
+
+
 	ALAP(ops, delay, latencyConstraint);
 
 	// CHANGED BY SILVIA
@@ -299,18 +311,30 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 
 				//schedule avaialble operations in increasing slack order and bind them to avaialble FUs
-				for (auto pt = availableOperations.begin(); pt != availableOperations.end(); pt++)
-					for (int k = 0; k < time[currentFunctionType].size(); k++)
+				for (auto it = tempOpSet.begin(); it != tempOpSet.end(); it++){
+
+					int op_id = it->first;
+
+					for (int k = 0; k < time[currentFunctionType].size(); k++){
 						if (time[currentFunctionType][k] < currentClockCycle)
 						{
-							sclbld.scl[*pt] = currentClockCycle;
+							sclbld.scl[op_id] = currentClockCycle;
 							numberOfScheduledOperations++;
-							sclbld.bld[currentFunctionType][k].push_back(*pt);
-							time[currentFunctionType][k] = currentClockCycle + delay[ops[*pt].type] - 1;
+							sclbld.bld[currentFunctionType][k].push_back(op_id);
+							time[currentFunctionType][k] = currentClockCycle + delay[ops[op_id].type] - 1;
+
+							if (debug) {
+                                cout << "\t[ASSIGNED] Cycle " << currentClockCycle 
+                                     << ": OpID " << op_id
+                                     << " (Type " << currentFunctionType << ")"
+                                     << " -> Bound to Unit #" << k << endl;
+                            }
 							break;
 						}
-			}
+					}
+				}
 			availableOperations.clear();
+			}
 		}//end each Function type
 		currentClockCycle++;	//move to the next cc
 	}//end list scheduling
@@ -338,6 +362,59 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 	actualLatency = sclbld.achievedLatency;
 }
+
+
+
+// IMPLEMENTED BY SILVIA (DEBUG HELPER - HORIZONTAL VERSION)
+void print_fds_horizontal(const std::vector<std::vector<float>>& fds_graphs, int target_latency) {
+    std::cout << "\n--- FDS DENSITY (Horizontal) ---" << std::endl;
+
+    int num_types = fds_graphs.size();
+    
+    // Width of the bar for value 1.0. Adjust this if you want wider/shorter bars.
+    // e.g. if scale = 20, a value of 1.0 becomes "[********************]"
+    int scale_factor = 20; 
+
+    for (int type = 0; type < num_types; ++type) {
+        
+        // Check if this resource type has any activity
+        bool has_activity = false;
+        for (float val : fds_graphs[type]) {
+            if (val > 0.001f) {
+                has_activity = true;
+                break;
+            }
+        }
+        if (!has_activity) continue;
+
+        std::cout << "[Resource Type " << type << "]" << std::endl;
+
+        for (int t = 1; t <= target_latency; ++t) {
+            float val = fds_graphs[type][t];
+            
+            // Print Cycle Number
+            if (t < 10) std::cout << " C0" << t << " : ";
+            else        std::cout << " C"  << t << " : ";
+
+            // Draw Bar
+            int bar_len = static_cast<int>(val * scale_factor);
+            std::cout << "[";
+            for (int k = 0; k < bar_len; ++k) std::cout << "#";
+            
+            // Padding to align values (optional, assumes max density around 2.0-3.0)
+            int max_pad = scale_factor * 3; // Space for up to value 3.0
+            for (int k = bar_len; k < max_pad; ++k) std::cout << " ";
+            std::cout << "] ";
+
+            // Print Exact Value
+            std::cout << std::fixed << std::setprecision(2) << val << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "--------------------------------" << std::endl;
+}
+
+
 
 
 
@@ -632,6 +709,11 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
     calculate_fds_graphs(ops, fds_graphs, target_latency, delay);
 
+	if (debug) {
+        std::vector<int> dummy_constr; // Empty constraint just to make it compile
+        print_fds_horizontal(fds_graphs, target_latency);
+    }
+
     // Helper: compute local congestion C_local(u) from FDS
     auto compute_C_local = [&](int opId) -> float {
         const G_Node &node = ops.at(opId);
@@ -640,20 +722,23 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
         // Ignore SOURCE/SINK or invalid types
         if (func_type < 0 || func_type >= numberOfFunctionType) return 0.0f;
 
-        int asap = node.asap;
-        int alap = std::max(node.asap, node.alap);
-        int latency = delay[func_type];
+        int start_time = node.asap;
+        int end_time = std::max(node.asap, node.alap) + delay[func_type] - 1;
 
-        float q_max = 0.0f;
+        double sum_q = 0.0;
+        int count = 0;
 
-        // We consider all possible (start, active) cycles in the mobility window
-        for (int s = asap; s <= alap; ++s) {
-            for (int t = s; t < s + latency; ++t) {
-                if (t <= 0 || t > target_latency) continue;
-                q_max = std::max(q_max, fds_graphs[func_type][t]);
-            }
+        // Iterate strictly over the unique time slots in the window
+        for (int t = start_time; t <= end_time; ++t) {
+            if (t <= 0 || t > target_latency) continue;
+            
+            sum_q += fds_graphs[func_type][t];
+            count++;
         }
-        return q_max; // not divided by resources; normalization happens later
+
+		// Return Average (Sum / Count) instead of Max
+        if (count == 0) return 0.0f;
+        return static_cast<float>(sum_q / count);
     };
 
     // Compute raw S(u) and C(u) for all available operations
