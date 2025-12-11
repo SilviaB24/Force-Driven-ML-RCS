@@ -935,7 +935,7 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
         	F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA) * entry.second.priority2;
 		}
 		else if (!featP && featS) {
-			F = s_norm * (c_norm + EPS);
+			F = s_norm * (c_norm + EPS) * entry.second.priority2;
 		} else if (featP && !featS) {
 			F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
 		} else {

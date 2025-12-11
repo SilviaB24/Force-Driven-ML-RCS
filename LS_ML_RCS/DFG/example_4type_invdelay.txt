@@ -2,16 +2,19 @@ digraph hal1 {
     node [fontcolor=white,style=filled,color=blue2];
     ADD_1 [label = ADD ];
     ADD_2 [label = ADD ];
-    ADD_3 [label = ADD ];
-    ADD_4 [label = ADD ];
-    ADD_5 [label = ADD ];
+    MUL_3 [label = MUL ];
+    MUL_4 [label = MUL ];
+    DIV_5 [label = DIV ];
     ADD_6 [label = ADD ];
-
     MUL_7 [label = MUL ];
+    ADD_8 [label = ADD ];
+    DIV_9 [label = DIV ];
 
-    ADD_1 -> ADD_2 [ name = 1 ];
-    ADD_2 -> ADD_3 [ name = 2 ];
-    ADD_3 -> ADD_4 [ name = 3 ];
-    ADD_5 -> ADD_6 [ name = 4 ];
-    ADD_6 -> MUL_7 [ name = 5 ];
+
+    ADD_1 -> MUL_4 [ name = 1 ];
+    MUL_4 -> MUL_7 [ name = 2 ];
+    ADD_2 -> DIV_5 [ name = 3 ];
+    DIV_5 -> ADD_8 [ name = 4 ];
+    MUL_3 -> ADD_6 [ name = 5 ];
+    ADD_6 -> DIV_9 [ name = 6 ];
 }
