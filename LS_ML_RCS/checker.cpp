@@ -8,7 +8,6 @@
 
 using namespace std;
 
-const int tnum = 2;	//number of operation type
 
 int DFG = 0; //DFG ID, this is automatically run from range 1 to 11
 int LC = 0; //global parameter latency constraint. LC = latency_parameter * ASAP latency.
@@ -78,8 +77,7 @@ void func2(const std::string& line, std::map<int, string>& FU_type, std::map<int
 	int delay = 0;
 
 	std::map<std::string, int> predefined_FU_type_id = {
-	{"ADD",0},{"MUL",1},{"AND",2},{"ASR",3},
-	{"LSR",4},{"STR",5},{"SUB",6},{"DIV",7}
+  		{"ADD",0},{"MUL",1},{"DIV",2},{"SQRT",3}
 	};
 
 	// Next dynamic FU-type ID for non-predefined types (starts from 8)
@@ -206,17 +204,20 @@ int main(int argc, char** argv)
     std::string temp_dfg_name = input_filename;
     
     // Remove algorithm prefix if present
-    size_t pos_prefix = temp_dfg_name.find("Improved_"); 
+	algo_name = "LS";
+
+    size_t pos_prefix = temp_dfg_name.find(algo_name + "_"); 
     if (pos_prefix != std::string::npos) {
-        temp_dfg_name = temp_dfg_name.substr(pos_prefix + 9);
+        temp_dfg_name = temp_dfg_name.substr(pos_prefix + algo_name.length() + 1);
     }
+
+	printf("Temp DFG name = %s\n", temp_dfg_name.c_str());
 
     // Remove features suffixes
 	std::string clean_dfg_name = std::regex_replace(temp_dfg_name, std::regex("(_S[01]_P[01]\\.txt)$"), "");
 
     
     check_dfg_name = clean_dfg_name;
-    algo_name = "LS_Improved";
 
 	std::cout << "DFG name = " << check_dfg_name << endl;
 	std::cout << "HLS algo = " << algo_name << endl;
@@ -225,9 +226,9 @@ int main(int argc, char** argv)
 	filename = "DFG//" + check_dfg_name + ".txt";
 	//Read_DFG(DFG, filename, dfg_name); //read DFG filename
 
+	printf("Reading DFG file: %s\n", filename.c_str());
 
     readGraphInfo(filename, edge_num, opn, ops);
-
 
 
 
@@ -345,9 +346,11 @@ int main(int argc, char** argv)
 		for (auto cc = 1; cc <= actual_latency; cc++)
 			FU_bind[fu->first][cc] = 0;
 
-	for (auto t = 0; t < tnum; t++)
+	for (const auto& pair : FU_type) {
+		int type = pair.first;
 		for (auto cc = 1; cc <= actual_latency; cc++)
-			FU_usage[t][cc] = 0;
+			FU_usage[type][cc] = 0;
+	}
 
 	for (auto u = 0; u < opn; u++)
 	{
@@ -380,40 +383,53 @@ int main(int argc, char** argv)
 		Check resource constraint:
 	*/
 	//initialize max_resouce usage for each type.
-	int max_resource[2];
-	max_resource[0] = 0;
-	max_resource[1] = 0;
+	std::map<int, int> max_resource;
 
-	for (auto type = 0; type < tnum; type++)
-		for (auto cc = 1; cc <= actual_latency; cc++)
-			if (max_resource[type] < FU_usage[type][cc])
-				max_resource[type] = FU_usage[type][cc];
-
-	std::cout << "# of ADD used (derived from your schl solution) = " << max_resource[0] << " , reported # of ADD used = " << reported_FUs[0] << " , ADD resource constraint = " << rc[0] << endl;
-	std::cout << "# of MUL used (derived from your schl solution) = " << max_resource[1] << " , reported # of MUL used = " << reported_FUs[1] << " , MUL resource constraint = " << rc[1] << endl;
-
-	if (max_resource[0] > rc[0])
-	{
-		fu_overlapped_error++; //increment # of total errors.
-		std::cout << "Resource constraint for ADD is not satisfied. RC of ADD = " << rc[0] << " Max usage of ADD = " << max_resource[0] << endl;
+	for (const auto& pair : FU_type) { 
+		max_resource[pair.first] = 0; 
 	}
 
-	if (max_resource[1] > rc[1]) {
-		fu_overlapped_error++; //increment # of total errors.
-		std::cout << "Resource constraint for MUL is not satisfied. RC of MUL = " << rc[1] << " Max usage of MUL = " << max_resource[1] << endl;
+	for (const auto& pair : FU_usage) {
+		int type = pair.first;
+		for (const auto& cc_pair : pair.second) {
+			if (max_resource[type] < cc_pair.second) {
+				max_resource[type] = cc_pair.second;
+			}
+		}
 	}
+	// Total errors found during resource check
+    int total_fu_errors = 0; 
 
-	if (reported_FUs[0] != max_resource[0])
-	{
-		fu_overlapped_error++; //increment # of total errors.
-		std::cout << "Actual and reported ADD used are not the same." << endl;
-	}
+    // Iterate over ALL Functional Unit types read from the input file (e.g., ADD, MUL, DIV, SQRT)
+    for (const auto& pair : FU_type) {
+        int type_id = pair.first;
+        const std::string& type_name = pair.second;
 
-	if (reported_FUs[1] != max_resource[1]) {
-		fu_overlapped_error++; //increment # of total errors.
-		std::cout << "Actual and reported MUL used are not the same." << endl;
-	}
+        // Safely retrieve usage, reported usage, and constraint
+        int derived_usage = max_resource.count(type_id) ? max_resource.at(type_id) : 0;
+        int reported_usage = reported_FUs.count(type_id) ? reported_FUs.at(type_id) : 0;
+        int constraint = rc.count(type_id) ? rc.at(type_id) : 0;
 
+        // REPORT USAGE AND CONSTRAINT for the current FU type
+        std::cout << "# of " << type_name << " used (derived from your schl solution) = " << derived_usage 
+                  << " , reported # of " << type_name << " used = " << reported_usage 
+                  << " , " << type_name << " resource constraint = " << constraint << endl;
+
+        // CHECK: Resource Constraint Violation
+        if (derived_usage > constraint) {
+            total_fu_errors++; 
+            std::cout << "Resource constraint for " << type_name << " is not satisfied. RC = " << constraint << " Max usage = " << derived_usage << endl;
+        }
+
+        // CHECK: Reported Usage Mismatch (Scheduler reported one value, Checker calculated another)
+        if (reported_usage != derived_usage) {
+            total_fu_errors++; 
+            std::cout << "Actual and reported " << type_name << " used are not the same." << endl;
+        }
+    }
+    
+    // Add errors found in the resource and reporting check to the main error counter
+    fu_overlapped_error += total_fu_errors;
 
 	std::cout << "Actual Latency = " << actual_latency << " Reported latency = " << LC << endl;
 	if (actual_latency != LC) {
@@ -421,14 +437,15 @@ int main(int argc, char** argv)
 		std::cout << "Actual latency and reported latency are not the same. " << endl;
 	}
 
-	//End new change.
-
 	std::cout << "********** For DFG : " << DFG << " , Reported LC = " << LC << " , Total # of Errors = " << (fu_overlapped_error + error_pair.size()) << " * *********************" << endl;
 
 	all_error += (fu_overlapped_error + error_pair.size());
 
-	std::cout << "Press ENTER to terminate the program." << endl;
-	std::cin.get();	//press Enter to terminate the program
+	// CHANGED BY SILVIA
+	// std::cout << "Press ENTER to terminate the program." << endl;
+	// std::cin.get();	//press Enter to terminate the program
+
+	// END CHANGED BY SILVIA
 }
 
 bool parse_filename_by_algo(const std::string& filename,

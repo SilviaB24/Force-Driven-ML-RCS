@@ -1,6 +1,5 @@
 #include "LS.h"
 
-
 // IMPLEMENTED BY SILVIA
 #ifdef _WIN32
     #include <direct.h>   // Windows-specific header
@@ -28,7 +27,11 @@ int edge_num = 0;
 
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP);
+void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
+	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution, bool debug, bool featS, bool featP);
 
+
+void FDS_Outer_Loop(std::map<int, G_Node>& ops, std::vector<int>& delay, int& LC, double& latencyParameter, std::vector<int>& res_constr, bool debug);
 
 // IMPLEMENTED BY SILVIA
 void WriteResultToCSV(string algName, string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs, double runtimeMs);
@@ -46,7 +49,7 @@ int main(int argc, char** argv)
 	std::vector<int> delay, lp, dp;
 	
 	// IMPLEMENTED BY SILVIA
-	string algName = "LS_Improved";
+	string algName = "LS";
 
 	// Command-line arguments for debugging and features activation
     bool debug = false;
@@ -161,8 +164,18 @@ int main(int argc, char** argv)
 		// Start the timer
 		auto start_time = std::chrono::high_resolution_clock::now();
 
-		LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
+		// OUR IMPLEMENTATION
+		// LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
+		// 	ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
+
+		// STANDARD LS IMPLEMENTATION
+		// LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
+		// 	ops, latencyConstraint, latencyParameter, delay, res_constr, 
+		// 	false, debug, false, false);
+
+		// FDS IMPLEMENTATION
+		FDS_Outer_Loop(ops, delay, latencyConstraint, latencyParameter, res_constr, debug);
+
 
 		// Stop the timer
 		auto end_time = std::chrono::high_resolution_clock::now();
@@ -172,6 +185,20 @@ int main(int argc, char** argv)
         double runtime_ms = duration.count();
 
 		// END CHANGED BY SILVIA
+
+		for (auto type = 0; type < FUAllocationResult.size(); type++){
+			int reallyUsedFUs = 0;
+			int numOfFUs = FUAllocationResult[type];
+			
+			for (auto fu = 0; fu < numOfFUs; fu++) {
+				if (bindingResult.count(type) && 
+					bindingResult[type].count(fu) && 
+					!bindingResult[type][fu].empty()) {
+					reallyUsedFUs++;
+				}
+			}
+			FUAllocationResult[type] = reallyUsedFUs;
+		}
 
 		int total_FUs = 0;
 

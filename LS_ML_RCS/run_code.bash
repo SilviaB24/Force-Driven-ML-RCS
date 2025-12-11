@@ -35,42 +35,44 @@ if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
     echo ""
     echo "Options for 'check' mode:"
     echo -e " ${YELLOW}[file]${NC}             Input file to check (single file for check or CSV for report generation)."
+    echo -e " ${YELLOW}--debug${NC}            Enable debug mode."
     exit 0
 fi
 
 
-if [ "$MODE" == "run" ]; then
+# Parse optional arguments
+for arg in "${@:2}"; do
+    case $arg in
+        --debug|-D)
+            DEBUG=1
+            echo -e "${YELLOW}[INFO] Debug mode enabled.${NC}"
+            ;;
+        --featS|-S)
+            FEAT_S=1
+            echo -e "${YELLOW}[INFO] Feature S enabled.${NC}"
+            ;;
+        --featP|-P)
+            FEAT_P=1
+            echo -e "${YELLOW}[INFO] Feature P enabled.${NC}"
+            ;;
+        --uniform|-U)
+            DATA_TYPE="uniform"
+            echo -e "${YELLOW}[INFO] Mode set to: UNIFORM distribution.${NC}"
+            ;;
+        --invdelay|-I)
+            DATA_TYPE="invdelay"
+            echo -e "${YELLOW}[INFO] Mode set to: INVERSE DELAY distribution.${NC}"
+            ;;
+    esac
+done
+    
 
-    # Parse optional arguments
-    for arg in "${@:2}"; do
-        case $arg in
-            --debug|-D)
-                DEBUG=1
-                echo -e "${YELLOW}[INFO] Debug mode enabled.${NC}"
-                ;;
-            --featS|-S)
-                FEAT_S=1
-                echo -e "${YELLOW}[INFO] Feature S enabled.${NC}"
-                ;;
-            --featP|-P)
-                FEAT_P=1
-                echo -e "${YELLOW}[INFO] Feature P enabled.${NC}"
-                ;;
-            --uniform|-U)
-                DATA_TYPE="uniform"
-                echo -e "${YELLOW}[INFO] Mode set to: UNIFORM distribution.${NC}"
-                ;;
-            --invdelay|-I)
-                DATA_TYPE="invdelay"
-                echo -e "${YELLOW}[INFO] Mode set to: INVERSE DELAY distribution.${NC}"
-                ;;
-        esac
-    done
+if [ "$MODE" == "run" ]; then
 
     # Compile the scheduler
     echo -e "${CYAN}[BUILD] Compiling scheduler...${NC}"
     echo ""
-    g++ -std=c++17 -O3 -I. LSMain.cpp LS.cpp readInputs.cpp -o scheduler
+    g++ -std=c++17 -O3 -I. LSMain.cpp LS.cpp FDS.cpp readInputs.cpp -o scheduler
 
     # Run the scheduler
     if [ $? -eq 0 ]; then
@@ -106,7 +108,7 @@ elif [ "$MODE" == "check" ]; then
             # If CSV file is provided a report will be generated
             echo -e "${CYAN}[REPORT] Generating Excel report from $INPUT_FILE...${NC}"
             if [ -f "run_checker.py" ]; then
-                python3 run_checker.py "$INPUT_FILE" "./checker_mac" "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
+                python3 run_checker.py "$INPUT_FILE" "./checker_mac" "$DEBUG"
             else
                 echo -e "${RED}[ERROR] run_checker.py not found.${NC}"
                 exit 1

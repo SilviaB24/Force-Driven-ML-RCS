@@ -1,0 +1,16 @@
+// The next line is the dfg name
+example_4type_invdelay
+// The next lines are FU parameters given as:
+// <FU type>  <resource constraint>  <# of FUs used>  <FU delay>
+ADD 1 0 1
+MUL 1 0 3
+DIV 1 0 5
+SQRT 1 0 6
+actual latency 0
+0 0 0
+1 0 0
+2 0 0
+3 0 0
+4 0 0
+5 0 0
+6 0 0

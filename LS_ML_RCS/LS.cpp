@@ -104,7 +104,7 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
     int target_latency = sequential_latency;
 
-
+	int previous_best_latency = sequential_latency;
 	
 	int iteration_count = 0;
 
@@ -118,24 +118,67 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 
 		iteration_count++;
 
-		//cout << "Iteration: " << iteration_count << ". Target latency: " << target_latency << endl;
+		int current_run_latency = 0;
+
+		if (debug){
+			cout << "Iteration " << iteration_count << " with Target Latency: " << target_latency << endl;
+		}
+
+		// Store previous run solution
+		std::map<int, int> temp_schlResult = schlResult;
+        std::map<int, int> temp_FUAllocationResult = FUAllocationResult;
+        std::map<int, std::map<int, std::vector<int>>> temp_bindingResult = bindingResult;
+
 
 		// calculate priorities
 
-		LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
+		LS(schlResult, FUAllocationResult, bindingResult, current_run_latency,
 			ops, target_latency, latencyParameter, delay, res_constr, true, debug, featS, featP);
 
-		target_latency = actualLatency - 1;
 
-		if(actualLatency >= latencyConstraint){
-			//cout << "No better solution found. Exiting. " << endl;
-			return;
+		if(current_run_latency < previous_best_latency){
+
+			previous_best_latency = current_run_latency;
+
+			actualLatency = current_run_latency; 
+			
+			// Next target latency
+	        target_latency = actualLatency - 1;
+
+			// Update best solution found so far
+			temp_schlResult = schlResult;
+			temp_FUAllocationResult = FUAllocationResult;
+			temp_bindingResult = bindingResult;
+
+			if (debug) {
+                cout << "Improvement found in Iteration " << iteration_count 
+                     << ". New Best Latency: " << previous_best_latency 
+                     << ". Next target: " << target_latency << endl;
+            }
 		}
+		else{
+			// Revert to previous best solution
+			schlResult = temp_schlResult;
+			FUAllocationResult = temp_FUAllocationResult;
+			bindingResult = temp_bindingResult;
+
+			actualLatency = previous_best_latency;
+
+			if (debug) {
+                cout << "No improvement found in Iteration " << iteration_count 
+                     << ". Latency achieved: " << current_run_latency 
+                     << ". Exiting loop with best latency: " << actualLatency << endl;
+            }
+
+			break;
+		}
+
+		// Safety check for impossible target latency
+    	if (target_latency < 1) break;
+	
 	}
 }
 // END IMPLEMENTED BY SILVIA
-
-
 
 
 
@@ -219,6 +262,27 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 	sclbld.bld = vector<vector<vector<int>>>(numberOfFunctionType, vector<vector<int>>(1, vector<int>(0)));
 
 	//initialize time[][] and res[] according to pre-allocation
+	for (int aFunctionType = 0; aFunctionType < numberOfFunctionType; aFunctionType++)
+	{
+		int maxConcurrentUsage = 0;
+		
+		// Per ogni FU di questo tipo
+		for (int fu = 0; fu < sclbld.bld[aFunctionType].size(); fu++)
+		{
+			// Se questa FU ha almeno un'operazione assegnata
+			if (!sclbld.bld[aFunctionType][fu].empty())
+			{
+				maxConcurrentUsage++;
+			}
+		}
+		
+		// Aggiorna con il numero effettivo
+		sclbld.res[aFunctionType] = maxConcurrentUsage;
+	}
+
+	//get achieved latency of the LS iteration
+	sclbld.achievedLatency = 0;
+
 	for (int aFunctionType = 0; aFunctionType < numberOfFunctionType; aFunctionType++)
 	{
 		time[aFunctionType].clear();
