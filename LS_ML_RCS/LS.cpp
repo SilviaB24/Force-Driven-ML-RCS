@@ -32,6 +32,7 @@ struct SortSlack {
 
 
 
+// SILVIA'S NEW IMPROVEMENT IDEA:
 struct PrioritySorting {
 
 	bool use_featS;
@@ -43,24 +44,18 @@ struct PrioritySorting {
 		if (a.second.priority1 != b.second.priority1) {
             return a.second.priority1 < b.second.priority1;
         }
-		
-		// SILVIA'S NEW IMPROVEMENT IDEA:
 
 		if (use_featS) {
-				
-			if (a.second.priority2 != b.second.priority2) {
-				return a.second.priority2 < b.second.priority2;
-			}
 
 			return a.second.priority3 < b.second.priority3;
 		}
 
 		return a.first < b.first;
 
-		// END OF SILVIA'S NEW IMPROVEMENT IDEA
 	}
 };
 
+// END OF SILVIA'S NEW IMPROVEMENT IDEA
 
 
 
@@ -74,7 +69,7 @@ void getLC(int& LC, double& latency_parameter, std::map<int, G_Node>& ops, std::
 
 
 // IMPLEMENTED BY PLEASE
-void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP);
+void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP, bool featS);
 // END IMPLEMENTED BY PLEASE
 
 
@@ -82,7 +77,7 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 // IMPLEMENTED BY SILVIA
 void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool improvedSolution, bool debug, bool featS, bool featP);
-void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP);
+void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP, bool featS);
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 // END IMPLEMENTED BY SILVIA
@@ -359,7 +354,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 				// Calculate priorities for available operations
 				if (improvedSolution) {
 					
-					calculate_priorities(tempOpSet, ops, delay, debug, featP);
+					calculate_priorities(tempOpSet, ops, delay, debug, featP, featS);
 
 					// Debug info
 
@@ -687,15 +682,16 @@ void calculate_fds_graphs(std::map<int, G_Node> ops, std::vector<std::vector<flo
 }
 
 
-void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP)
+void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP, bool featS)
 {
-
-	calculate_first_priority(available_ops, ops, delay, debug, featP);
 	
 	// SILVIA'S NEW IMPROVEMENT IDEA
 	calculate_second_priority(available_ops, ops, delay);
 	calculate_third_priority(available_ops, ops, delay);
 	// END OF SILVIA'S NEW IMPROVEMENT IDEA
+
+	calculate_first_priority(available_ops, ops, delay, debug, featP, featS);
+	
 }
 
 
@@ -738,6 +734,9 @@ void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_op
 	// Map for memoization
 	std::map<int, float> memo;
 
+	// Temporary vector to store stiffness values
+	std::vector<float> stiffness_values;
+
 	for (auto& [id, node] : available_ops) {
 
 		// Priority 2: 
@@ -760,8 +759,26 @@ void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_op
         }
 
 		// Store negative sum to have higher priority for higher sum values
-		ops[id].priority2 = -maxSuccessorStiffness;
-		node.priority2 = -maxSuccessorStiffness;
+		ops[id].priority2 = maxSuccessorStiffness;
+		node.priority2 = maxSuccessorStiffness;
+
+		stiffness_values.push_back(maxSuccessorStiffness);
+	}
+
+	// Normalization between 1 (max) and 0 (min)
+	float maxVal = *std::max_element(stiffness_values.begin(), stiffness_values.end());
+	float minVal = *std::min_element(stiffness_values.begin(), stiffness_values.end());
+
+	for (auto& [id, node] : available_ops) {
+		if (maxVal == minVal) {
+			node.priority2 = 0.0f;   
+			ops[id].priority2 = 0.0f;
+		} else {
+			float normalized = (node.priority2 - minVal) / (maxVal - minVal);
+			// Lower value = higher stiffness, so invert
+			node.priority2 = 1.0f - normalized;
+			ops[id].priority2 = 1.0f - normalized;
+		}
 	}
 
 }
@@ -795,7 +812,7 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
 void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops,
                               std::map<int, G_Node>& ops,
-                              std::vector<int>& delay, bool debug, bool featP)
+                              std::vector<int>& delay, bool debug, bool featP, bool featS)
 {
     if (available_ops.empty()) return;
 
@@ -914,10 +931,14 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
         // F(u) = S_norm^ALPHA * (C_norm + EPS)^BETA
 		double F = 0.0;
 
-		if (featP) {
-        	F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+		if (featP && featS) {
+        	F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA) * entry.second.priority2;
 		}
-		else {
+		else if (!featP && featS) {
+			F = s_norm * (c_norm + EPS);
+		} else if (featP && !featS) {
+			F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+		} else {
 			F = s_norm * (c_norm + EPS);
 		}
 

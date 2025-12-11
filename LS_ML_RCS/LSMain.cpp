@@ -165,8 +165,8 @@ int main(int argc, char** argv)
 		auto start_time = std::chrono::high_resolution_clock::now();
 
 		// OUR IMPLEMENTATION
-		// LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
-		// 	ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
+		LS_outer_loop(schlResult, FUAllocationResult, bindingResult, actualLatency,
+			ops, latencyConstraint, latencyParameter, delay, res_constr, debug, featS, featP);
 
 		// STANDARD LS IMPLEMENTATION
 		// LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 		// 	false, debug, false, false);
 
 		// FDS IMPLEMENTATION
-		FDS_Outer_Loop(ops, delay, latencyConstraint, latencyParameter, res_constr, debug);
+		// FDS_Outer_Loop(ops, delay, latencyConstraint, latencyParameter, res_constr, debug);
 
 
 		// Stop the timer

@@ -107,12 +107,10 @@ def main():
     df['Checker_Status'] = checker_results
 
     # Save the final report to a new CSV file
-    final_csv_file = csv_file.replace(".csv", "_checker_report.csv")
-    df.to_csv(final_csv_file, index=False)
+    df.to_csv(csv_file, index=False)
 
     if debug:
-        print(f"\nFinal Report generated: {final_csv_file}")
-
+        print(f"\nFinal Report generated: {csv_file}")
 
 if __name__ == "__main__":
     main()
