@@ -17,6 +17,21 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Detect if running in Windows without WSL or Git Bash
+if [[ "$OS" == "Windows_NT" && -z "$MSYSTEM" && -z "$WSL_DISTRO_NAME" ]]; then
+    echo -e "\033[0;31m[ERROR]\033[0m This script must be run in a Bash-compatible terminal."
+    echo "Try one of these options:"
+    echo " - Open Git Bash (recommended)"
+    echo " - Or run inside Windows Subsystem for Linux (WSL)"
+    exit 1
+fi
+
+# Extension for executables (.exe on Windows, empty on Linux/mac)
+EXT=""
+if [[ "$OS" == "Windows_NT" ]]; then
+    EXT=".exe"
+fi
+
 
 # Check if help must be displayed
 if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
@@ -77,7 +92,7 @@ if [ "$MODE" == "run" ]; then
     # Run the scheduler
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}[BUILD] Compilation successful. Running scheduler...${NC}"
-        ./scheduler "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
+        ./scheduler$EXT "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
     else
         echo -e "${RED}[ERROR] Compilation failed.${NC}"
         exit 1
@@ -118,7 +133,7 @@ elif [ "$MODE" == "check" ]; then
             # If single file is provided simply check that file
             if [ -f "$INPUT_FILE" ]; then
                 echo -e "${CYAN}[CHECK] Verifying single file: $INPUT_FILE...${NC}"
-                ./checker_mac "$INPUT_FILE"
+                ./checker_mac$EXT "$INPUT_FILE"
             else
                 echo -e "${RED}[ERROR] Input file not found.${NC}"
                 exit 1
