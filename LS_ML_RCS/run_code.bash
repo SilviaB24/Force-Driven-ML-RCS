@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# IMPLEMENTED BY SILVIA
 MODE=$1
 
 
@@ -7,7 +8,7 @@ MODE=$1
 DEBUG=0
 FEAT_S=0
 FEAT_P=0
-
+DATA_TYPE="invdelay"
 
 # Define colors
 RED='\033[0;31m'
@@ -26,9 +27,11 @@ if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
     echo -e "  ${GREEN}check [file]${NC}       Compile and run the checker on the specified file."
     echo ""
     echo "Options for 'run' mode:"
-    echo "  -debug            Enable debug mode."
-    echo "  -featS            Enable feature S for priority calculation."
-    echo "  -featP            Enable feature P for priority calculation."
+    echo "  --debug            Enable debug mode."
+    echo "  --featS            Enable feature S for priority calculation."
+    echo "  --featP            Enable feature P for priority calculation."
+    echo "  --uniform          Run with UNIFORM distribution (default is InvDelay)."
+    echo "  --invdelay         Run with INVERSE DELAY distribution."
     exit 0
 fi
 
@@ -38,29 +41,37 @@ if [ "$MODE" == "run" ]; then
     # Parse optional arguments
     for arg in "${@:2}"; do
         case $arg in
-            -debug)
+            --debug|-D)
                 DEBUG=1
                 echo -e "${YELLOW}[INFO] Debug mode enabled.${NC}"
                 ;;
-            -featS)
+            --featS|-S)
                 FEAT_S=1
                 echo -e "${YELLOW}[INFO] Feature S enabled.${NC}"
                 ;;
-            -featP)
+            --featP|-P)
                 FEAT_P=1
                 echo -e "${YELLOW}[INFO] Feature P enabled.${NC}"
+                ;;
+            --uniform|-U)
+                DATA_TYPE="uniform"
+                echo -e "${YELLOW}[INFO] Mode set to: UNIFORM distribution.${NC}"
+                ;;
+            --invdelay|-I)
+                DATA_TYPE="invdelay"
+                echo -e "${YELLOW}[INFO] Mode set to: INVERSE DELAY distribution.${NC}"
                 ;;
         esac
     done
 
     # Compile the scheduler
     echo -e "${CYAN}[BUILD] Compiling scheduler...${NC}"
-    g++ -std=c++17 LSMain.cpp LS.cpp readInputs.cpp -o scheduler
+    g++ -std=c++17 -O3 -I. LSMain.cpp LS.cpp readInputs.cpp -o scheduler
 
     # Run the scheduler
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}[BUILD] Compilation successful. Running scheduler...${NC}"
-        ./scheduler "$DEBUG" "$FEAT_S" "$FEAT_P"
+        ./scheduler "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
     else
         echo -e "${RED}[ERROR] Compilation failed.${NC}"
         exit 1
@@ -93,3 +104,5 @@ else
     exit 1
 fi
 
+
+# END IMPLEMENTED BY SILVIA

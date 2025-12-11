@@ -1,0 +1,17 @@
+// The next line is the dfg name
+custom_test2
+// The next lines are FU parameters given as:
+// <FU type>  <resource constraint>  <# of FUs used>  <FU delay>
+ADD 1 1 1
+MUL 1 1 2
+DIV 1 1 3
+actual latency 7
+0 2 0
+1 1 0
+2 5 0
+3 3 0
+4 3 1
+5 5 1
+6 1 1
+7 2 2
+8 5 2

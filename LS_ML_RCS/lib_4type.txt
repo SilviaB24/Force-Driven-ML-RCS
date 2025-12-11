@@ -1,0 +1,6 @@
+//This is the FU design library: each line for one FU -- <type> <delay (in cc)> <leakage power> <dynamic power>
+add 1 11 11
+mul 3 72 72
+div 5 83 83
+sqrt 6 94 94
+//EOF

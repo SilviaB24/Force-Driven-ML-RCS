@@ -10,12 +10,13 @@
     #include <sys/types.h>
     #define MAKE_DIR(name) mkdir(name, 0777)
 #endif
+
 // END IMPLEMENTED BY SILVIA
 
 
 using namespace std;
 
-double latencyParameter = 1;	 //latency constant parameter, change this parameter can affect the latency constraint and hence, the final scheduling result is changed
+double latencyParameter = 1.5;	 //latency constant parameter, change this parameter can affect the latency constraint and hence, the final scheduling result is changed
 int DFG = 0;					//DFG ID, this is automatically run from range 1 to 11
 int LC = 0;						//global parameter latency constraint. LC = latency_parameter * ASAP latency.
 int opn = 0;					 //# of operations in current DFG
@@ -25,6 +26,12 @@ int edge_num = 0;
 void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, std::map<int, std::map<int, std::vector<int>>>& bindingResult, int& actualLatency,
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP);
 
+
+// IMPLEMENTED BY SILVIA
+void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs);
+void LoadConstraints(const string& filename, std::map<string, ConstraintData>& db);   
+// END IMPLEMENTED BY SILVIA
+
 ofstream output_sb_result;
 
 int main(int argc, char** argv)
@@ -32,7 +39,7 @@ int main(int argc, char** argv)
 
 	//read "lib"
 	//get delay structure: only ADD/MUL are needed. you can change delay of ADD/MUL (# of cc's) in "lib.txt" file.
-    std::string filename = "lib.txt"; 
+    std::string filename = "lib_4type.txt"; 
 	std::vector<int> delay, lp, dp;
 	
 	// IMPLEMENTED BY SILVIA
@@ -41,17 +48,26 @@ int main(int argc, char** argv)
     bool debug = false;
     bool featS = false;
     bool featP = false;
+	string data_type = "invdelay";
 
-    if (argc >= 4) {
+    if (argc >= 5) {
         debug = (std::stoi(argv[1]) != 0);
         featS = (std::stoi(argv[2]) != 0);
         featP = (std::stoi(argv[3]) != 0);
+        data_type = "_" + std::string(argv[4]);
     }
 
 	std::vector<int> res_constr;
 	std::vector<string> res_type;
 
-	READ_LIB(filename, delay, lp, dp, res_type, res_constr);
+	READ_LIB(filename, delay, lp, dp, res_type);
+
+
+	// Load resource constraints from a file
+	string constraints_filename = "constraints" + data_type + ".txt";
+	std::map<string, ConstraintData> constraints_db;
+
+	LoadConstraints(constraints_filename, constraints_db);
 
 	// END IMPLEMENTED BY SILVIA
 
@@ -59,19 +75,46 @@ int main(int argc, char** argv)
 
 	// print LIB info for debugging
 	for (size_t i = 0; i < delay.size(); i++) {
-		std::cout << "Function ID: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << ", ResConstr: " << res_constr[i] << ", ResType: " << res_type[i] << std::endl;
+
+		if (debug)
+			std::cout << "Function ID: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << ", ResType: " << res_type[i] << std::endl;
 	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 24; DFG <= 24; DFG++) {
+	for (DFG = 1; DFG <= 24; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
 		ops.clear();
 
-		string filename, dfg_name;
-		Read_DFG(DFG, filename, dfg_name);			//read DFG filename
+		string filename, dfg_name, clean_dfg_name;
+		Read_DFG(DFG, filename, dfg_name, data_type);			//read DFG filename
 		readGraphInfo(filename, edge_num, opn, ops); //read DFG info
+
+
+		// IMPLEMENTED BY SILVIA
+
+		// Clean dfg_name
+		if (dfg_name.length() >= 4 && dfg_name.substr(dfg_name.length() - 4) == ".txt") {
+            clean_dfg_name = dfg_name.substr(0, dfg_name.length() - 4);
+        }
+
+        if (clean_dfg_name.find("_4type") != string::npos) {
+            clean_dfg_name = clean_dfg_name.substr(0, clean_dfg_name.find("_4type"));
+        }
+
+		// Use the resource constraints for the current DFG read from the constraints database
+		res_constr = constraints_db[clean_dfg_name].resources;
+
+		if (debug) {
+			cout << "Resource Constraints for DFG " << DFG << " (" << clean_dfg_name << "): " << endl;
+			for (size_t i = 0; i < res_constr.size(); i++) {
+				cout << "Type " << res_type[i] << ": " << res_constr[i] << "  ";
+			}
+			cout << endl << endl;
+		}
+
+		// END IMPLEMENTED BY SILVIA
 
 
 		std::map<int, int> ops_schl_cc, ops_schl_FU, FU_type;
@@ -185,8 +228,11 @@ int main(int argc, char** argv)
 			output_sb_result << i << " " << schlResult[i] << " " << opBindingResult[i] << endl;
 		}
 
-		// END IMPLEMENTED BY SILVIA
+		// Write results to a CSV file
+        WriteResultToCSV(DFGname, data_type, featS, featP, constraints_db[dfg_name].targetLatency, actualLatency, totalFUs);
+        
 
+		// END IMPLEMENTED BY SILVIA
 
 
 		output_sb_result.close();
@@ -198,3 +244,84 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+
+
+
+// IMPLEMENTED BY SILVIA
+
+
+
+// Function to load resource constraints from a file 
+void LoadConstraints(const string& filename, std::map<string, ConstraintData>& db) {
+
+	// Open the file
+    ifstream fin(filename);
+
+    if (!fin.is_open()) {
+        cerr << "Error: cannot open constraint file " << filename << endl;
+        return;
+    }
+
+    string line;
+
+    while (getline(fin, line)) {
+        if (line.empty() || line.rfind("//", 0) == 0) continue;
+        stringstream ss(line);
+        string name;
+        int target, a, m, d, s;
+
+		// Read target delay and constraints for each FU type
+        ss >> name >> target >> a >> m >> d >> s; 
+
+		// If reading was successful, store in db
+        if (!ss.fail()) {
+            db[name] = { target, {a, m, d, s} };
+        }
+    }
+
+	// Close the file
+    fin.close();
+}
+
+
+
+// Function to write results to a CSV file
+void WriteResultToCSV(string dfgName, string data_type, bool featS, bool featP, int targetLat, int actualLat, int totalFUs) {
+    
+    // Dynamically create filename based on features and mode 
+    string clean_data_type = data_type.substr(1);
+    
+    stringstream ssFileName;
+    ssFileName << "Results_" << clean_data_type 
+               << "_FeatS" << featS 
+               << "_FeatP" << featP 
+               << ".csv";
+    
+    string fileName = ssFileName.str();
+    
+    // Open the CSV file in append mode
+    ofstream csvFile;
+    csvFile.open(fileName, std::ios_base::app);
+    
+    // If new/empty file write the header
+    csvFile.seekp(0, ios::end);
+    if (csvFile.tellp() == 0) {
+        csvFile << "DFG_Name,Target_Latency(FALLS),Actual_Latency(Project),Delta,Status,FUs_Used\n";
+    }
+    
+    // Calculate status: if achieved better or equal latency than target it's a PASS
+    string status = (actualLat <= targetLat) ? "PASS" : "FAIL";
+    if (targetLat == -1) status = "NO_DATA";
+    
+    // Write data line
+    csvFile << dfgName << "," 
+            << targetLat << "," 
+            << actualLat << "," 
+            << (actualLat - targetLat) << ","
+            << status << ","
+            << totalFUs << "\n";
+            
+    csvFile.close();
+}
+
+// END IMPLEMENTED BY SILVIA

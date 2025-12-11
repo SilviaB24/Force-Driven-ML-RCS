@@ -1,0 +1,21 @@
+digraph G {
+  MUL_1 [label= SQRT ];
+  MUL_2 [label= MUL ];
+  MUL_3 [label= ADD ];
+  STR_4 [label= DIV ];
+  STR_5 [label= MUL ];
+  MUL_6 [label= SQRT ];
+  MUL_7 [label= SQRT ];
+  MUL_8 [label= DIV ];
+  ADD_9 [label= MUL ];
+  ADD_10 [label= ADD ];
+  LOD_11 [label= DIV ];
+  MUL_1 -> MUL_3 [ name = 0 ]; 
+  MUL_2 -> MUL_3 [ name = 1 ]; 
+  MUL_3 -> STR_4 [ name = 2 ]; 
+  STR_4 -> STR_5 [ name = 3 ]; 
+  MUL_6 -> MUL_7 [ name = 4 ]; 
+  MUL_7 -> STR_5 [ name = 5 ]; 
+  MUL_8 -> ADD_9 [ name = 6 ]; 
+  ADD_10 -> LOD_11 [ name = 7 ]; 
+}

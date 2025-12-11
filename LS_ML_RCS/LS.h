@@ -42,16 +42,26 @@ struct G_Node    //save the info for operation node
 	// END IMPLEMENTED BY SILVIA
 };
 
+
+// IMPLEMENTED BY SILVIA
+
+// DB entry for resource constraints
+struct ConstraintData {
+    int targetLatency;
+    std::vector<int> resources;
+};
+
+// END IMPLEMENTED BY SILVIA
+
 void READ_LIB(const string& file_name,
 	vector<int>& delay,
 	vector<int>& lp,
 	vector<int>& dp,
-	vector<string>& res_type,
-	vector<int>& res_constr
+	vector<string>& res_type
 );
 
 
-void Read_DFG(int& DFG, string& filename, string& dfg_name); //Read-DFG filename
+void Read_DFG(int& DFG, string& filename, string& dfg_name, string suffix); //Read-DFG filename
 void readGraphInfo(string& filename, int& edge_num, int& opn, std::map<int, G_Node>& ops);
 
 
