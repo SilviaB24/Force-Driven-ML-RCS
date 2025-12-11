@@ -59,11 +59,11 @@ int main(int argc, char** argv)
 
 	// print LIB info for debugging
 	for (size_t i = 0; i < delay.size(); i++) {
-		std::cout << "Function type: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << "\n";
+		std::cout << "Function ID: " << i << ", Delay: " << delay[i] << ", LP: " << lp[i] << ", DP: " << dp[i] << ", ResConstr: " << res_constr[i] << ", ResType: " << res_type[i] << std::endl;
 	}
 
 	//iterate all DFGs from 1 to 22 (the 16-22 are random DFGs)
-	for (DFG = 23; DFG <= 23; DFG++) {
+	for (DFG = 24; DFG <= 24; DFG++) {
 
 		std::map<int, G_Node> ops;
 		LC = 0, opn = 0, edge_num = 0;
@@ -73,14 +73,6 @@ int main(int argc, char** argv)
 		Read_DFG(DFG, filename, dfg_name);			//read DFG filename
 		readGraphInfo(filename, edge_num, opn, ops); //read DFG info
 
-		if (debug) {
-			std::cout << "DFG " << DFG << " read from file " << filename << " with " << opn << " operations and " << edge_num << " edges.\n";
-
-			for (const auto& [id, node] : ops) {
-				std::cout << "Node ID: " << id << ", Type: " << node.type
-					<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
-			}
-		}
 
 		std::map<int, int> ops_schl_cc, ops_schl_FU, FU_type;
 		ops_schl_cc.clear();
@@ -137,7 +129,10 @@ int main(int argc, char** argv)
 			curr_idx += numOfFUs;
 		}
 
-		std::cout << "For the curren DFG " << DFG << ", the actual Latency is " << actualLatency << " (latency constraint is " << latencyConstraint << ")," << " # of total FUs used = " << totalFUs << endl;
+		cout << endl;
+		cout << endl;
+
+		std::cout << "For the current DFG " << DFG << ", the actual Latency is " << actualLatency << " (latency constraint is " << latencyConstraint << ")," << " # of total FUs used = " << totalFUs << endl;
 
 		//get output s&b result file.
 		string DFGname;

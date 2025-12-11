@@ -94,16 +94,24 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP)
 {
 
-	int starting_high_latency = 100000;
-	// Get latency constraint upper bound
-	LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
-			ops, starting_high_latency, latencyParameter, delay, res_constr, false, debug, featS, featP);
+	// Calculate latency upper bound as the sequential execution latency
+    int sequential_latency = 0;
+    for (const auto& pair : ops) {
+
+        int type = pair.second.type;
+        sequential_latency += delay[type];
+    }
+
+    int target_latency = sequential_latency;
+
+
 	
-	int target_latency = actualLatency;
 	int iteration_count = 0;
 
 	if (debug){
+		cout << endl;
 		cout << "Initial Target Latency: " << target_latency << endl;
+		cout << endl;
 	}
 
 	while (iteration_count < MAX_ITERATIONS){
@@ -145,6 +153,13 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 
 	ALAP(ops, delay, latencyConstraint);
+
+	// print the whole content of ops for debugging
+	if (debug)
+	for (const auto& [id, node] : ops) {
+		std::cout << "Node ID: " << id << ", Type: " << node.type
+			<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
+	}
 
 	// CHANGED BY SILVIA
 	int numberOfFunctionType = res_constr.size();
@@ -297,7 +312,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 								<< n.priority2 << "\t\t" 
 								<< n.priority3 << endl;
 						}
-						cout << "----------------------------------------" << endl;
+						cout << endl;
 					}
 
 					//sort operations in increasing Priority order
@@ -324,7 +339,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 							time[currentFunctionType][k] = currentClockCycle + delay[ops[op_id].type] - 1;
 
 							if (debug) {
-                                cout << "\t[ASSIGNED] Cycle " << currentClockCycle 
+                                cout << " => [ASSIGNED] Cycle " << currentClockCycle 
                                      << ": OpID " << op_id
                                      << " (Type " << currentFunctionType << ")"
                                      << " -> Bound to Unit #" << k << endl;
@@ -365,44 +380,46 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 
 
-// IMPLEMENTED BY SILVIA (DEBUG HELPER - HORIZONTAL VERSION)
-void print_fds_horizontal(const std::vector<std::vector<float>>& fds_graphs, int target_latency) {
-    std::cout << "\n--- FDS DENSITY (Horizontal) ---" << std::endl;
+// IMPLEMENTED BY SILVIA
+void print_fds(const std::vector<std::vector<float>>& fds_graphs, int target_latency) {
+    std::cout << "\n[FDS DENSITY GRAPHS]" << std::endl;
 
     int num_types = fds_graphs.size();
     
-    // Width of the bar for value 1.0. Adjust this if you want wider/shorter bars.
-    // e.g. if scale = 20, a value of 1.0 becomes "[********************]"
+	// Scaling factor for bar length: 1.0 = 20 hashes
     int scale_factor = 20; 
 
     for (int type = 0; type < num_types; ++type) {
         
-        // Check if this resource type has any activity
-        bool has_activity = false;
+        // Check if this resource is used at all
+        bool is_used = false;
         for (float val : fds_graphs[type]) {
             if (val > 0.001f) {
-                has_activity = true;
+                is_used = true;
                 break;
             }
         }
-        if (!has_activity) continue;
+        if (!is_used) continue;
 
-        std::cout << "[Resource Type " << type << "]" << std::endl;
+		// If resource type is used, print its FDS graph
 
+        std::cout << "\t[Resource Type " << type << "]" << std::endl;
+
+		// Loop through cycles 1 to target_latency
         for (int t = 1; t <= target_latency; ++t) {
             float val = fds_graphs[type][t];
             
             // Print Cycle Number
-            if (t < 10) std::cout << " C0" << t << " : ";
-            else        std::cout << " C"  << t << " : ";
+            if (t < 10) std::cout << "\t C0" << t << " : ";
+            else        std::cout << "\t C"  << t << " : ";
 
             // Draw Bar
-            int bar_len = static_cast<int>(val * scale_factor);
+            int bar_len = (int)(val * scale_factor);
             std::cout << "[";
             for (int k = 0; k < bar_len; ++k) std::cout << "#";
             
-            // Padding to align values (optional, assumes max density around 2.0-3.0)
-            int max_pad = scale_factor * 3; // Space for up to value 3.0
+            // Padding to align values: max value assumed to be 3.0
+            int max_pad = scale_factor * 3;
             for (int k = bar_len; k < max_pad; ++k) std::cout << " ";
             std::cout << "] ";
 
@@ -411,9 +428,8 @@ void print_fds_horizontal(const std::vector<std::vector<float>>& fds_graphs, int
         }
         std::cout << std::endl;
     }
-    std::cout << "--------------------------------" << std::endl;
 }
-
+// END IMPLEMENTED BY SILVIA
 
 
 
@@ -546,7 +562,6 @@ int checkChild(G_Node* op, std::vector<int>& delay, int& LC)
 
 				// IMPLEMENTED BY SILVIA
 				op->criticalSuccessorId = (*it)->id;
-				cout << "DEBUG: Node " << op->id << " critical succ set to " << (*it)->id << endl;
 				// END IMPLEMENTED BY SILVIA
 			}
 			continue;
@@ -563,14 +578,8 @@ int checkChild(G_Node* op, std::vector<int>& delay, int& LC)
 
 
 // IMPLEMENTED BY SILVIA
-void calculate_fds_graphs(std::map<int, G_Node> ops, std::vector<std::vector<float>>& fds_graphs, int target_latency, std::vector<int> delay)
+void calculate_fds_graphs(std::map<int, G_Node> ops, std::vector<std::vector<float>>& fds_graphs, int target_latency, std::vector<int> delay, bool debug)
 { 
-	
-	// print the whole content of ops for debugging
-	for (const auto& [id, node] : ops) {
-		//std::cout << "Node ID: " << id << ", Type: " << node.type
-		//	<< ", ASAP: " << node.asap << ", ALAP: " << node.alap << "\n";
-	}
 
 	
 	for (size_t i = 0; i < fds_graphs.size(); i++) {
@@ -628,25 +637,67 @@ void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, st
 
 
 // SILVIA'S NEW IMPROVEMENT IDEA
+
+// Helper to computer stiffness recursively with memoization
+float get_stiffness(int nodeId, std::map<int, G_Node>& ops, std::vector<int>& delay, std::map<int, float>& memo) {
+
+	// Check if already computed
+    if (memo.count(nodeId)) {
+        return memo[nodeId];
+    }
+
+	// Compute latency of this node squared
+    float latency = (float)delay[ops[nodeId].type];
+    float latency_2 = latency * latency;
+
+    // If it has no children, the stiffness is just the square of its latency
+    if (ops[nodeId].child.empty()) {
+        return memo[nodeId] = latency_2;
+    }
+
+    // Find the maximum among all child paths
+    float maxChildStiffness = 0.0f;
+    for (auto child : ops[nodeId].child) {
+        float childStiffness = get_stiffness(child->id, ops, delay, memo);
+        if (childStiffness > maxChildStiffness) {
+            maxChildStiffness = childStiffness;
+        }
+    }
+
+    // Save and return total stiffness
+    return memo[nodeId] = latency_2 + maxChildStiffness;
+}
+
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay)
 {
+
+	// Map for memoization
+	std::map<int, float> memo;
+
 	for (auto& [id, node] : available_ops) {
 
 		// Priority 2: 
-		float sum = 0.0f;
+		float maxSuccessorStiffness = 0.0f;
 
-		// sum on the critical path successors
-		int current_id = id;
-		while (ops[current_id].criticalSuccessorId != -1) {
-			int succ_id = ops[current_id].criticalSuccessorId;
+        if (node.child.empty()) {
+        	
+			// If it has no children, the future stiffness is 0
+            maxSuccessorStiffness = 0.0f;
+        } else {
 
-			// Add square of latency to sum
-			sum += pow(delay[ops[succ_id].type],2);
-			current_id = succ_id;
-		}
+            // Find the child with the worst stiffness
+            for (auto child : node.child) {
+
+                float s = get_stiffness(child->id, ops, delay, memo);
+                if (s > maxSuccessorStiffness) {
+                    maxSuccessorStiffness = s;
+                }
+            }
+        }
 
 		// Store negative sum to have higher priority for higher sum values
-		ops[id].priority2 = -sum;
+		ops[id].priority2 = -maxSuccessorStiffness;
+		node.priority2 = -maxSuccessorStiffness;
 	}
 
 }
@@ -658,6 +709,7 @@ void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops
 		// Priority 3: Number of immediate children (more children -> higher priority)
 		// Store negative number to have higher priority for more children
 		ops[id].priority3 = - ops[id].child.size();
+		node.priority3 = - ops[id].child.size();
 	}
 
 }
@@ -707,11 +759,11 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
         std::vector<float>(target_latency + 2, 0.0f)
     );
 
-    calculate_fds_graphs(ops, fds_graphs, target_latency, delay);
+    calculate_fds_graphs(ops, fds_graphs, target_latency, delay, debug);
 
 	if (debug) {
         std::vector<int> dummy_constr; // Empty constraint just to make it compile
-        print_fds_horizontal(fds_graphs, target_latency);
+        print_fds(fds_graphs, target_latency);
     }
 
     // Helper: compute local congestion C_local(u) from FDS
@@ -796,7 +848,14 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 
         // Probabilistic weighting:
         // F(u) = S_norm^ALPHA * (C_norm + EPS)^BETA
-        double F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+		double F = 0.0;
+
+		if (featP) {
+        	F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+		}
+		else {
+			F = s_norm * (c_norm + EPS);
+		}
 
         // Write into the global ops map 
         ops[id].priority1 = F;
@@ -807,6 +866,7 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
     }
 
 
+	// IMPLEMENTED BY SILVIA 
 	if (debug) {
 		cout << "\n[DEBUG PRIORITY 1 DETAILS]" << endl;
 		cout << "ID\tS_raw\tS_norm\tC_raw\tC_norm\tFinal_F" << endl;
@@ -817,13 +877,14 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 			double s_norm = rawS[id] / s_max;
 			double c_norm = (c_max > 0.0) ? (rawC[id] / c_max) : 0.0;
 
-			// Probabilistic weighting:
-			// F(u) = S_norm^ALPHA * (C_norm + EPS)^BETA
-			double F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+			double F = 0.0;
 
-			// Write into the global ops map 
-			ops[id].priority1 = F;
-			entry.second.priority1 = F;
+			if (featP) {
+				F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
+			}
+			else {
+				F = s_norm * (c_norm + EPS);
+			}
 
 			// --- DEBUG PRINT COMPONENTS ---
 			cout << id << "\t" 
@@ -834,8 +895,8 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 				<< F << endl;
 			// -----------------------------
 		}
-		cout << "--------------------------\n" << endl;
 	}
+	// END IMPLEMENTED BY SILVIA
 }
 
 
