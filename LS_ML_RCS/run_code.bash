@@ -9,6 +9,8 @@ DEBUG=0
 FEAT_S=0
 FEAT_P=0
 DATA_TYPE="invdelay"
+LS_BASE=0
+SCALE_FACTOR=1.0
 
 # Define colors
 RED='\033[0;31m'
@@ -47,6 +49,8 @@ if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
     echo -e " ${YELLOW}--featP${NC}            Enable feature P for priority calculation."
     echo -e " ${YELLOW}--uniform${NC}          Run with UNIFORM distribution (default is InvDelay)."
     echo -e " ${YELLOW}--invdelay${NC}         Run with INVERSE DELAY distribution."
+    echo -e " ${YELLOW}--base${NC}             Enable base LS mode (standard implementation)."
+    echo -e " ${YELLOW}--scaling=[value]${NC}   Set scaling factor for resource constraints (default is 1.0)."
     echo ""
     echo "Options for 'check' mode:"
     echo -e " ${YELLOW}[file]${NC}             Input file to check (single file for check or CSV for report generation)."
@@ -78,6 +82,15 @@ for arg in "${@:2}"; do
             DATA_TYPE="invdelay"
             echo -e "${YELLOW}[INFO] Mode set to: INVERSE DELAY distribution.${NC}"
             ;;
+        --base|-B)
+            LS_BASE=1
+            echo -e "${YELLOW}[INFO] Base LS mode enabled.${NC}"
+            ;;
+        --scaling=*|-F=*)
+            # Extract the value after the '=' sign
+            SCALE_FACTOR="${arg#*=}"
+            echo -e "${YELLOW}[INFO] Scaling factor set to: ${SCALE_FACTOR}${NC}"
+            ;;
     esac
 done
     
@@ -92,7 +105,7 @@ if [ "$MODE" == "run" ]; then
     # Run the scheduler
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}[BUILD] Compilation successful. Running scheduler...${NC}"
-        ./scheduler$EXT "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE"
+        ./scheduler$EXT "$DEBUG" "$FEAT_S" "$FEAT_P" "$DATA_TYPE" "$LS_BASE" "$SCALE_FACTOR"
     else
         echo -e "${RED}[ERROR] Compilation failed.${NC}"
         exit 1

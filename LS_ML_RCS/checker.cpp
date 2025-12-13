@@ -196,37 +196,50 @@ int main(int argc, char** argv)
 	std::string input_filename = argv[1];
 	//std::cout << "Input file: " << input_filename << endl;
 
-	std::string check_dfg_name, algo_name;
-
 	// CHANGED BY SILVIA
 
-    // Parse input filename to extract clean DFG name
-    std::string temp_dfg_name = input_filename;
-    
-    // Remove algorithm prefix if present
-	algo_name = "LS";
+    // Get the full path passed by Python
+    std::string full_path = input_filename;
+    std::string temp_dfg_name;
+	bool debug = argv[2] == std::string("1");
 
-    size_t pos_prefix = temp_dfg_name.find(algo_name + "_"); 
-    if (pos_prefix != std::string::npos) {
-        temp_dfg_name = temp_dfg_name.substr(pos_prefix + algo_name.length() + 1);
+	cout << "Checker debug mode: " << (debug ? "ON" : "OFF") << endl;
+
+    // Strip directories by removing everything up to the last slash
+    size_t last_slash = full_path.find_last_of("/\\");
+    if (last_slash != std::string::npos) {
+        temp_dfg_name = full_path.substr(last_slash + 1);
+    } else {
+        temp_dfg_name = full_path;
+    }
+    
+    // Strip extension
+    size_t last_dot = temp_dfg_name.find_last_of(".");
+    if (last_dot != std::string::npos) {
+        temp_dfg_name = temp_dfg_name.substr(0, last_dot);
     }
 
-	printf("Temp DFG name = %s\n", temp_dfg_name.c_str());
+    // Strip features: Remove suffixes like _S1_P1 using Regex
+    temp_dfg_name = std::regex_replace(temp_dfg_name, std::regex("(_S[0-9]+_P[0-9]+)"), "");
 
-    // Remove features suffixes
-	std::string clean_dfg_name = std::regex_replace(temp_dfg_name, std::regex("(_S[01]_P[01]\\.txt)$"), "");
+    // Strip prefixes: Remove "Results_LS_" or "LS_"
+    // Output: "invdelay"
+    std::string prefix1 = "Results_LS_";
 
-    
-    check_dfg_name = clean_dfg_name;
+    if (temp_dfg_name.find(prefix1) == 0) { 
+        temp_dfg_name = temp_dfg_name.substr(prefix1.length());
+    }
 
-	std::cout << "DFG name = " << check_dfg_name << endl;
-	std::cout << "HLS algo = " << algo_name << endl;
+    if (debug)
+        std::cout << "[DEBUG] Extracted DFG Name: " << temp_dfg_name << endl;
 
-	string filename, dfg_name;
-	filename = "DFG//" + check_dfg_name + ".txt";
-	//Read_DFG(DFG, filename, dfg_name); //read DFG filename
+    // Construct the actual DFG file path
+    string filename;
+    filename = "DFG//" + temp_dfg_name + ".txt";
 
-	printf("Reading DFG file: %s\n", filename.c_str());
+
+    if (debug)
+        std::cout << "Reading DFG file: " << filename << endl;
 
     readGraphInfo(filename, edge_num, opn, ops);
 

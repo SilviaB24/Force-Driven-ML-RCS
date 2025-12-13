@@ -1,0 +1,43 @@
+// The next line is the dfg name
+ewf_4type_uniform
+// The next lines are FU parameters given as:
+// <FU type>  <resource constraint>  <# of FUs used>  <FU delay>
+ADD 1 1 1
+MUL 1 1 3
+DIV 1 1 5
+SQRT 1 1 6
+actual latency 72
+0 1 3
+1 1 2
+2 7 3
+3 13 3
+4 19 3
+5 25 3
+6 25 2
+7 31 3
+8 30 2
+9 37 2
+10 37 1
+11 37 3
+12 43 3
+13 40 1
+14 43 2
+15 49 3
+16 48 2
+17 55 0
+18 58 2
+19 53 2
+20 53 1
+21 56 1
+22 63 0
+23 63 2
+24 59 1
+25 62 1
+26 65 1
+27 68 1
+28 62 0
+29 65 0
+30 68 0
+31 71 0
+32 69 0
+33 72 0

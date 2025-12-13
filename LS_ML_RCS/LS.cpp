@@ -80,6 +80,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay, bool debug, bool featP, bool featS);
 void calculate_second_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
 void calculate_third_priority(std::vector<std::pair<int, G_Node>>& available_ops, std::map<int, G_Node>& ops, std::vector<int>& delay);
+int ASAP_latency(std::map<int, G_Node>& ops, std::vector<int>& delay);
 // END IMPLEMENTED BY SILVIA
 
 
@@ -89,89 +90,97 @@ void LS_outer_loop(std::map<int, int>& schlResult, std::map<int, int>& FUAllocat
 	std::map<int, G_Node>& ops, int& latencyConstraint, double& latencyParameter, std::vector<int>& delay, std::vector<int>& res_constr, bool debug, bool featS, bool featP)
 {
 
-	// Calculate latency upper bound as the sequential execution latency
-    int sequential_latency = 0;
-    for (const auto& pair : ops) {
+	int target_latency, current_run_latency, best_latency;
+	bool at_least_one_success, first_iteration, valid_schedule_found;
 
-        int type = pair.second.type;
-        sequential_latency += delay[type];
-    }
 
-    int target_latency = sequential_latency;
+	// Calculate latency upper bound
+    LS(schlResult, FUAllocationResult, bindingResult, actualLatency,
+			ops, latencyConstraint, latencyParameter, delay, res_constr, false, debug, false, false);
 
-	int previous_best_latency = sequential_latency;
-	
-	int iteration_count = 0;
+	int upper_bound_latency = actualLatency * latencyParameter;
+
+	// Calculate latency lower bound 
+	int lower_bound_latency = ASAP_latency(ops, delay);
+
+	// Temporary storage for the best found solution
+	std::map<int, int> temp_schlResult;
+	std::map<int, int> temp_FUAllocationResult;
+	std::map<int, std::map<int, std::vector<int>>> temp_bindingResult;
+
 
 	if (debug){
 		cout << endl;
-		cout << "Initial Target Latency: " << target_latency << endl;
+		cout << "Upper bound latency: " << upper_bound_latency << ", Lower bound latency: " << lower_bound_latency << endl;
 		cout << endl;
 	}
 
-	while (iteration_count < MAX_ITERATIONS){
+	at_least_one_success = false;
+	do {
+		
+		int target_latency = upper_bound_latency; 
+        bool first_iteration = true;
+        bool valid_schedule_found = false;
+        int current_run_latency = 0;
 
-		iteration_count++;
+		do {
+		
+			if (first_iteration){
 
-		int current_run_latency = 0;
+				target_latency = upper_bound_latency;
+				first_iteration = false;
 
-		if (debug){
-			cout << "Iteration " << iteration_count << " with Target Latency: " << target_latency << endl;
-		}
+			} else {
 
-		// Store previous run solution
-		std::map<int, int> temp_schlResult = schlResult;
-        std::map<int, int> temp_FUAllocationResult = FUAllocationResult;
-        std::map<int, std::map<int, std::vector<int>>> temp_bindingResult = bindingResult;
+				target_latency = target_latency - 1;
+			}
+
+			if (debug) cout << "Attempting target: " << target_latency << endl; 
+
+			// calculate priorities
+
+			LS(schlResult, FUAllocationResult, bindingResult, current_run_latency,
+				ops, target_latency, latencyParameter, delay, res_constr, true, debug, featS, featP);
+
+			valid_schedule_found = (current_run_latency > 0 && current_run_latency <= target_latency);
 
 
-		// calculate priorities
+			if (valid_schedule_found) {
 
-		LS(schlResult, FUAllocationResult, bindingResult, current_run_latency,
-			ops, target_latency, latencyParameter, delay, res_constr, true, debug, featS, featP);
+				if (debug) cout << "Valid schedule found with latency: " << current_run_latency << endl;
 
+				at_least_one_success = true;
+				target_latency = current_run_latency;
 
-		if(current_run_latency < previous_best_latency){
+				// Store best found solution
+				best_latency = current_run_latency;
+				temp_schlResult = schlResult;
+				temp_FUAllocationResult = FUAllocationResult;
+				temp_bindingResult = bindingResult;
+			} else {
+				if (debug) cout << "No valid schedule found for target latency: " << target_latency << endl;
+			}
 
-			previous_best_latency = current_run_latency;
+		} while (valid_schedule_found && target_latency > lower_bound_latency);
 
-			actualLatency = current_run_latency; 
+		if (!at_least_one_success){
+
+			lower_bound_latency = upper_bound_latency + 1;
+			upper_bound_latency = upper_bound_latency * latencyParameter;
 			
-			// Next target latency
-	        target_latency = actualLatency - 1;
-
-			// Update best solution found so far
-			temp_schlResult = schlResult;
-			temp_FUAllocationResult = FUAllocationResult;
-			temp_bindingResult = bindingResult;
-
-			if (debug) {
-                cout << "Improvement found in Iteration " << iteration_count 
-                     << ". New Best Latency: " << previous_best_latency 
-                     << ". Next target: " << target_latency << endl;
-            }
+			if (debug) cout << "No valid schedule found in this latency range. Expanding bounds to: " << lower_bound_latency << " - " << upper_bound_latency << endl;
 		}
-		else{
-			// Revert to previous best solution
-			schlResult = temp_schlResult;
-			FUAllocationResult = temp_FUAllocationResult;
-			bindingResult = temp_bindingResult;
+		
+	} while(!at_least_one_success);
 
-			actualLatency = previous_best_latency;
+		
+	// Revert to best found solution
+	schlResult = temp_schlResult;
+	FUAllocationResult = temp_FUAllocationResult;
+	bindingResult = temp_bindingResult;
 
-			if (debug) {
-                cout << "No improvement found in Iteration " << iteration_count 
-                     << ". Latency achieved: " << current_run_latency 
-                     << ". Exiting loop with best latency: " << actualLatency << endl;
-            }
+	actualLatency = best_latency;
 
-			break;
-		}
-
-		// Safety check for impossible target latency
-    	if (target_latency < 1) break;
-	
-	}
 }
 // END IMPLEMENTED BY SILVIA
 
@@ -256,24 +265,29 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 
 	sclbld.bld = vector<vector<vector<int>>>(numberOfFunctionType, vector<vector<int>>(1, vector<int>(0)));
 
-	//initialize time[][] and res[] according to pre-allocation
+
+	// IMPLEMENTED BY SILVIA
+
+	//initialize resource usage count
 	for (int aFunctionType = 0; aFunctionType < numberOfFunctionType; aFunctionType++)
 	{
 		int maxConcurrentUsage = 0;
 		
-		// Per ogni FU di questo tipo
+		// For every FU of this function type
 		for (int fu = 0; fu < sclbld.bld[aFunctionType].size(); fu++)
 		{
-			// Se questa FU ha almeno un'operazione assegnata
+			// If this FU has at least one assigned operation
 			if (!sclbld.bld[aFunctionType][fu].empty())
 			{
 				maxConcurrentUsage++;
 			}
 		}
 		
-		// Aggiorna con il numero effettivo
+		// Update with the actual number
 		sclbld.res[aFunctionType] = maxConcurrentUsage;
 	}
+
+	// END IMPLEMENTED BY SILVIA
 
 	//get achieved latency of the LS iteration
 	sclbld.achievedLatency = 0;
@@ -320,7 +334,7 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 					auto pt = ops[currentOperation].parent.begin();
 					if (ops[currentOperation].parent.size() > 0)
 						for (; pt != ops[currentOperation].parent.end(); pt++)
-							//the parent operation has not been scheduled or its finish cc (the node has been scheduled) is greater than current cc�� which means the operation is still unavailable
+							//the parent operation has not been scheduled or its finish cc (the node has been scheduled) is greater than current cc which means the operation is still unavailable
 							if ((sclbld.scl[(*pt)->id] == 0) || (sclbld.scl[(*pt)->id] + delay[ops[(*pt)->id].type] > currentClockCycle))
 								break;
 					bool operationAvailability = false;
@@ -379,6 +393,22 @@ void LS(std::map<int, int>& schlResult, std::map<int, int>& FUAllocationResult, 
 				} else {
 					//sort operations in increasing slack order
 					std::sort(tempOpSet.begin(), tempOpSet.end(), SortSlack());
+					if (debug)
+					{
+						// print tempopset sorted by slack
+						cout << "\n[DEBUG] Cycle " << currentClockCycle << " - Resource Type " << currentFunctionType << endl;
+						cout << "Candidates available (sorted by slack): " << tempOpSet.size() << endl;
+						cout << "ID\tASAP\tALAP\tSlack" << endl;
+						for (const auto& p : tempOpSet) {
+							// Access the node from the pair
+							const G_Node& n = p.second;
+							int slack = n.alap - n.asap;
+							cout << p.first << "\t" 
+								<< n.asap << "\t" 
+								<< n.alap << "\t" 
+								<< slack << endl;
+						}
+					}
 				}
 				// END IMPLEMENTED BY SILVIA
 
@@ -541,10 +571,6 @@ void ASAP(std::map<int, G_Node>& ops, std::vector<int>& delay)
 		}
 	}
 
-	//for (int i = 0; i < opn; i++)
-		//cout << "my id: " << i << " , asap time = " << ops[i].asap << endl;
-
-
 }
 
 int checkParent(G_Node* op, std::vector<int>& delay)
@@ -686,8 +712,10 @@ void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, st
 {
 	
 	// SILVIA'S NEW IMPROVEMENT IDEA
-	calculate_second_priority(available_ops, ops, delay);
-	calculate_third_priority(available_ops, ops, delay);
+	if (featS){
+		calculate_second_priority(available_ops, ops, delay);
+		calculate_third_priority(available_ops, ops, delay);
+	}
 	// END OF SILVIA'S NEW IMPROVEMENT IDEA
 
 	calculate_first_priority(available_ops, ops, delay, debug, featP, featS);
@@ -695,6 +723,22 @@ void calculate_priorities(std::vector<std::pair<int, G_Node>>& available_ops, st
 }
 
 
+// Get ASAP latency
+int ASAP_latency(std::map<int, G_Node>& ops, std::vector<int>& delay)
+{
+	ASAP(ops, delay);
+
+	int LC = 0;
+
+	for (auto const& [id, node] : ops) {
+		int finish_time = node.asap + delay[node.type] - 1;
+
+		if (finish_time > LC) {
+			LC = finish_time;
+		}
+	}
+	return LC;
+}
 
 // SILVIA'S NEW IMPROVEMENT IDEA
 
@@ -962,23 +1006,15 @@ void calculate_first_priority(std::vector<std::pair<int, G_Node>>& available_ops
 			double s_norm = rawS[id] / s_max;
 			double c_norm = (c_max > 0.0) ? (rawC[id] / c_max) : 0.0;
 
-			double F = 0.0;
+			double F = ops[id].priority1;
 
-			if (featP) {
-				F = std::pow(s_norm, ALPHA) * std::pow(c_norm + EPS, BETA);
-			}
-			else {
-				F = s_norm * (c_norm + EPS);
-			}
-
-			// --- DEBUG PRINT COMPONENTS ---
+			// Debug print
 			cout << id << "\t" 
 				<< rawS[id] << "\t" 
 				<< fixed << setprecision(2) << s_norm << "\t" 
 				<< rawC[id] << "\t" 
 				<< c_norm << "\t" 
 				<< F << endl;
-			// -----------------------------
 		}
 	}
 	// END IMPLEMENTED BY SILVIA

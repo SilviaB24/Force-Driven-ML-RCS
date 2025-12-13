@@ -1,0 +1,7 @@
+DFG_Name,Target_Latency(FALLS),Actual_Latency(Project),Delta,Status,FUs_Used,Runtime_ms
+example_4type_uniform,8,11,3,FAIL,2,0.8741
+hal_4type_uniform,22,25,3,FAIL,4,12.4612
+horner_bezier_surf_dfg__12_4type_uniform,34,46,12,FAIL,4,143.676
+arf_4type_uniform,57,234,177,FAIL,7,94401.7
+motion_vectors_dfg__7_4type_uniform,39,216,177,FAIL,6,267828
+ewf_4type_uniform,97,274,177,FAIL,7,116278
