@@ -68,6 +68,7 @@ Use this script to run a single scheduling experiment or verify a single CSV out
 
   * **`run`**: Runs the scheduling algorithm.
   * **`check`**: Runs the verifier on a specific CSV result file.
+  * **`--help` / `-h`**: Displays help information.
 
 ### Options for `run` Mode
 
@@ -101,9 +102,12 @@ Pass the CSV file to verify as the second argument.
 
 -----
 
-## 🤖 Automatic Batch Execution (`automatic_run_code.bash`)
+## Automatic Batch Execution (`automatic_run_code.bash`)
 
-Use this script to reproduce the **full set of experiments**. It iterates through scaling factors from **1.0 down to 0.1**.
+Use this script to reproduce the **full set of experiments**. It iterates through scaling factors from **1.0 down to 0.1**, for every configuration:
+
+  * **Distributions:** Uniform, Inverse Delay.
+  * **Algorithms:** Standard LS, FD-ML-RCS with No Features, FD-ML-RCS with Feature S & P.
 
 ### Usage
 
@@ -127,7 +131,7 @@ Use this script to reproduce the **full set of experiments**. It iterates throug
 
 -----
 
-## 📈 Generating Graphs
+## Generating Graphs
 
 To visualize the results after running the experiments, use the python script:
 
@@ -137,6 +141,8 @@ python3 run_graphs.py
 
 This will generate plots in the `Graphs/` directory, comparing:
 
-  * Latency Deltas vs Baseline.
+  * Latency Deltas (LS versions) vs Baseline (FALLS)
   * Runtime analysis.
   * Improvement percentages.
+
+> **Note:** This project has been developed and tested on macOS. For running on Windows, it may be necessary to install the required tools via WSL or adapt the scripts accordingly.

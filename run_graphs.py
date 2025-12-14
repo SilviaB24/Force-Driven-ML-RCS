@@ -187,32 +187,45 @@ def plot_graph_3_improvement(df, mode):
     print(f"\tSaved: Graph3_Improvement_{mode}_1.00.png")
 
 def plot_graph_4_global_weighted(df_all, mode):
-    # Calculate global impact using sums to avoid skewing by small DFGs
+    # Calculate global impact comparing both s0_p0 and s1_p1 against Standard LS
     subset = df_all[df_all["Mode"] == mode].copy()
     if subset.empty: return
 
     results = []
+    targets = ["LS_s0_p0", "LS_s1_p1"]
+
     for factor in SCALING_FACTORS:
         sub_f = subset[subset["Factor"] == factor]
         if sub_f.empty: continue
+        
         piv = sub_f.pivot_table(index="DFG_Clean", columns="Variant", values="Latency")
-        if "LS" in piv.columns and "LS_s1_p1" in piv.columns:
-            valid_pairs = piv.dropna(subset=["LS", "LS_s1_p1"])
-            if not valid_pairs.empty:
-                sum_ls = valid_pairs["LS"].sum()
-                sum_opt = valid_pairs["LS_s1_p1"].sum()
-                global_change = (sum_opt - sum_ls) / sum_ls * 100
-                results.append({"Factor": float(factor), "Avg_Change": global_change})
+        
+        # Calculate for both variants
+        for var in targets:
+            if "LS" in piv.columns and var in piv.columns:
+                valid_pairs = piv.dropna(subset=["LS", var])
+                if not valid_pairs.empty:
+                    sum_ls = valid_pairs["LS"].sum()
+                    sum_var = valid_pairs[var].sum()
+                    
+                    # Global % change: (Var - LS) / LS
+                    global_change = (sum_var - sum_ls) / sum_ls * 100
+                    
+                    results.append({
+                        "Factor": float(factor), 
+                        "Variant": var, 
+                        "Avg_Change": global_change
+                    })
 
     if not results: return
     res_df = pd.DataFrame(results).sort_values("Factor", ascending=False)
 
     plt.figure(figsize=(10, 6))
     
+    # Auto-zoom calculation based on ALL data points
     d_min = res_df["Avg_Change"].min()
     d_max = res_df["Avg_Change"].max()
     
-    # Auto zoom logic
     if d_min == d_max == 0:
         margin = 1.0
     else:
@@ -222,34 +235,51 @@ def plot_graph_4_global_weighted(df_all, mode):
     ylim_min = d_min - margin
     ylim_max = d_max + margin
     
+    # Zones
     plt.axhspan(0, ylim_max + 100, color='red', alpha=0.1)
     plt.axhspan(ylim_min - 100, 0, color='green', alpha=0.1)
     
-    plt.text(0.15, ylim_max - (margin*0.5), "WORSE (Global Lat. Increase)", color='darkred', fontweight='bold', ha='right', fontsize=8)
-    plt.text(0.15, ylim_min + (margin*0.5), "BETTER (Global Lat. Decrease)", color='darkgreen', fontweight='bold', ha='right', fontsize=8)
+    plt.text(0.15, ylim_max - (margin*0.5), "WORSE (Lat. Increase)", color='darkred', fontweight='bold', ha='right', fontsize=8)
+    plt.text(0.15, ylim_min + (margin*0.5), "BETTER (Lat. Decrease)", color='darkgreen', fontweight='bold', ha='right', fontsize=8)
 
-    plt.plot(res_df["Factor"], res_df["Avg_Change"], marker='o', color='black', linewidth=2, label="Global Delta (s1_p1)")
-    plt.axhline(0, color='black', linewidth=1)
+    # Plot Lines
+    styles = {
+        "LS_s0_p0": {"c": "orange", "m": "^", "lbl": "s0_p0 (No Feat)"},
+        "LS_s1_p1": {"c": "black",  "m": "o", "lbl": "s1_p1 (Opt)"}
+    }
 
+    for var in targets:
+        data = res_df[res_df["Variant"] == var]
+        if not data.empty:
+            s = styles.get(var)
+            plt.plot(data["Factor"], data["Avg_Change"], 
+                     marker=s["m"], color=s["c"], linewidth=2, label=s["lbl"])
+            
+            # Add labels
+            for _, row in data.iterrows():
+                val = row['Avg_Change']
+                # Offset labels slightly to avoid overlap if points are close
+                offset = margin * 0.3 if val >= 0 else - (margin * 0.3)
+                if var == "LS_s0_p0": offset *= 1.5 # Push orange labels further out
+                
+                plt.text(row["Factor"], val + offset, f"{val:.3f}%", 
+                         ha='center', fontsize=8, fontweight='bold', color=s["c"])
+
+    plt.axhline(0, color='black', linewidth=1, linestyle='-')
     plt.gca().invert_xaxis()
     plt.ylim(ylim_min, ylim_max)
     plt.xlabel("Constraint Factor (Stricter --->)")
     plt.ylabel("% Global Latency Change vs LS")
-    plt.title(f"Graph 4: Global Impact Analysis ({mode}) [Weighted]")
+    plt.title(f"Graph 4: Global Impact Analysis ({mode})")
+    plt.legend()
     plt.grid(True, linestyle='--', alpha=0.5)
-
-    for i, row in res_df.iterrows():
-        val = row['Avg_Change']
-        offset = margin * 0.3 if val >= 0 else - (margin * 0.3)
-        plt.text(row["Factor"], val + offset, f"{val:.3f}%", 
-                 ha='center', fontsize=8, fontweight='bold',
-                 color='red' if val > 0 else 'green')
-
     plt.tight_layout()
-    plt.savefig(OUTPUT_DIR / f"Graph4_Scaling_Delta_{mode}.png")
+    
+    filename = OUTPUT_DIR / f"Graph4_Scaling_Delta_{mode}.png"
+    plt.savefig(filename)
     plt.close()
-    print(f"\tSaved: Graph4_Scaling_Delta_{mode}.png")
-
+    print(f"\tSaved: {filename.name}")
+    
 def main():
     
     all_factors_data = []
