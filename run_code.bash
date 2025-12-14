@@ -53,7 +53,7 @@ if [ "$MODE" == "-h" ] || [ "$MODE" == "--help" ] || [ -z "$MODE" ]; then
     echo -e " ${YELLOW}--scaling=[value]${NC}   Set scaling factor for resource constraints (default is 1.0)."
     echo ""
     echo "Options for 'check' mode:"
-    echo -e " ${YELLOW}[file]${NC}             Input file to check (single file for check or CSV for report generation)."
+    echo -e " ${YELLOW}[file]${NC}             Input CSV file to run the checker on and update accordingly."
     echo -e " ${YELLOW}--debug${NC}            Enable debug mode."
     exit 0
 fi
@@ -133,25 +133,14 @@ elif [ "$MODE" == "check" ]; then
 
         if [[ "$INPUT_FILE" == *.csv ]]; then
 
-            # If CSV file is provided a report will be generated
+            # If CSV file is provided the report will be updated
             echo -e "${CYAN}[REPORT] Generating Excel report from $INPUT_FILE...${NC}"
             if [ -f "run_checker.py" ]; then
-                python3 run_checker.py "$INPUT_FILE" "./checker_mac" "$DEBUG"
+                python3 run_checker.py "$INPUT_FILE" "./checker_mac$EXT" "$DEBUG"
             else
                 echo -e "${RED}[ERROR] run_checker.py not found.${NC}"
                 exit 1
             fi
-
-        else
-            # If single file is provided simply check that file
-            if [ -f "$INPUT_FILE" ]; then
-                echo -e "${CYAN}[CHECK] Verifying single file: $INPUT_FILE...${NC}"
-                ./checker_mac$EXT "$INPUT_FILE"
-            else
-                echo -e "${RED}[ERROR] Input file not found.${NC}"
-                exit 1
-            fi
-
         fi
 
     else 

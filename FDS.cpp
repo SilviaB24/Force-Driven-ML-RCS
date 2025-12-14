@@ -2,7 +2,7 @@
 //"lookahead" approach was not discussed in the class but is used in this code, for forces calculation. please refer to the FDS paper section IV: E
 
 
-// MODIFIED BY SILVIA
+// MODIFIED BY SILVIA, PLEASE
 
 #include "LS.h"
 
