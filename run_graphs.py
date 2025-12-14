@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import warnings
 
+# IMPLEMENTED BY PLEASE, CHANGED BY SILVIA
+
 # Configuration
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -200,7 +202,6 @@ def plot_graph_4_global_weighted(df_all, mode):
         
         piv = sub_f.pivot_table(index="DFG_Clean", columns="Variant", values="Latency")
         
-        # Calculate for both variants
         for var in targets:
             if "LS" in piv.columns and var in piv.columns:
                 valid_pairs = piv.dropna(subset=["LS", var])
@@ -208,7 +209,6 @@ def plot_graph_4_global_weighted(df_all, mode):
                     sum_ls = valid_pairs["LS"].sum()
                     sum_var = valid_pairs[var].sum()
                     
-                    # Global % change: (Var - LS) / LS
                     global_change = (sum_var - sum_ls) / sum_ls * 100
                     
                     results.append({
@@ -222,7 +222,6 @@ def plot_graph_4_global_weighted(df_all, mode):
 
     plt.figure(figsize=(10, 6))
     
-    # Auto-zoom calculation based on ALL data points
     d_min = res_df["Avg_Change"].min()
     d_max = res_df["Avg_Change"].max()
     
@@ -235,14 +234,12 @@ def plot_graph_4_global_weighted(df_all, mode):
     ylim_min = d_min - margin
     ylim_max = d_max + margin
     
-    # Zones
     plt.axhspan(0, ylim_max + 100, color='red', alpha=0.1)
     plt.axhspan(ylim_min - 100, 0, color='green', alpha=0.1)
     
     plt.text(0.15, ylim_max - (margin*0.5), "WORSE (Lat. Increase)", color='darkred', fontweight='bold', ha='right', fontsize=8)
     plt.text(0.15, ylim_min + (margin*0.5), "BETTER (Lat. Decrease)", color='darkgreen', fontweight='bold', ha='right', fontsize=8)
 
-    # Plot Lines
     styles = {
         "LS_s0_p0": {"c": "orange", "m": "^", "lbl": "s0_p0 (No Feat)"},
         "LS_s1_p1": {"c": "black",  "m": "o", "lbl": "s1_p1 (Opt)"}
@@ -255,12 +252,10 @@ def plot_graph_4_global_weighted(df_all, mode):
             plt.plot(data["Factor"], data["Avg_Change"], 
                      marker=s["m"], color=s["c"], linewidth=2, label=s["lbl"])
             
-            # Add labels
             for _, row in data.iterrows():
                 val = row['Avg_Change']
-                # Offset labels slightly to avoid overlap if points are close
                 offset = margin * 0.3 if val >= 0 else - (margin * 0.3)
-                if var == "LS_s0_p0": offset *= 1.5 # Push orange labels further out
+                if var == "LS_s0_p0": offset *= 1.5
                 
                 plt.text(row["Factor"], val + offset, f"{val:.3f}%", 
                          ha='center', fontsize=8, fontweight='bold', color=s["c"])

@@ -25,6 +25,9 @@ This project implements a Force-Driven List Scheduling (FD-ML-RCS) algorithm alo
 | `CSV/` | Results stored as `.csv` files, organized by scaling factor. |
 | `Graphs/` | Generated plots visualizing latency, runtime, and improvements. |
 | `Results/` | Intermediate result storage, organized by scaling factor. |
+| **Documentation** | |
+| `README.md` | This documentation file. |
+| `Docs/` | Slides and Report from Midterm, Slides from Final. |
 
 -----
 
