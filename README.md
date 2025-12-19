@@ -47,15 +47,16 @@ Ensure the scripts are executable:
 chmod +x run_code.bash automatic_run_code.bash
 ```
 
-### 3\. Environment
+### 3\. Environment setup
 
-For python scripts use the provided virtual environment:
+#### Create the virtual environment
+`python3 -m venv venv`
 
-```bash
-source venv/bin/activate
-```
+#### Activate it
+`source venv/bin/activate`
 
------
+#### Install dependencies
+`pip install -r requirements.txt`
 
 ## Manual Execution (`run_code.bash`)
 
