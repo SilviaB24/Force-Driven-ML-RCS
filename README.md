@@ -9,7 +9,7 @@ This project implements a Force-Driven List Scheduling (FD-ML-RCS) algorithm alo
 | **Source Code** | |
 | `LSMain.cpp` | Main entry point for the scheduler. |
 | `LS.cpp`, `LS.h` | Implementation of List Scheduling algorithms. |
-| `FDS.cpp` | (Failed Attempt) Implementation of Force-Directed Scheduling. |
+| `FDS.cpp` | (Initial experimental) Implementation of Force-Directed Scheduling. |
 | `ReadInputs.cpp` | Helper to parse DFG files and constraints. |
 | `checker.cpp`, `checker.h` | (Changed) Verifier to validate scheduling results. |
 | **Scripts** | |

@@ -1,0 +1,30 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# --- C++ ---
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Object files
+*.o
+*.obj
+
+# Executables and Binaries
+*.exe
+*.out
+*.app
+*.dSYM/
+
+# --- IDE & Editors ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
